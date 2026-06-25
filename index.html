@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>ジャイロ ボール ローリング</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <div id="start-overlay">
+    <h1>🌀 ジャイロ ボール</h1>
+    <p>スマホを傾けてボールを転がそう！<br>キューブにぶつかりながら進め！<br><br>（PCはWASD / 矢印キーで操作可能）</p>
+    <button id="start-btn">スタート！</button>
+  </div>
+
+  <div id="ui">
+    <div id="title">🌀 GYRO BALL</div>
+    <div id="score-panel">
+      <div>距離: <span id="dist">0</span>m</div>
+      <div>衝突: <span id="hits">0</span>回</div>
+    </div>
+  </div>
+
+  <div id="gyro-indicator">ジャイロ: 待機中...</div>
+  <div id="keyboard-hint">PC操作: WASD / 矢印キー | R: リセット</div>
+
+  <!-- Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Cannon.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
