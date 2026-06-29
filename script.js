@@ -240,7 +240,12 @@ scene.add(new THREE.Points(starGeo, starMat));
 // ============================================================
 let gyroAlpha = 0, gyroBeta = 0, gyroGamma = 0;
 let gyroEnabled = false;
+let gyroCalibrated = false;
+let gyroBetaZero = 0, gyroGammaZero = 0;
+// プレイヤーの向き（ラジアン）。0 = 奥方向(-z)を向いている状態
+let heading = 0;
 const keys = {};
+
 
 // 共通ジャンプ処理関数
 function triggerJump() {
@@ -289,14 +294,31 @@ function requestGyro() {
 
 // 傾き（ジャイロ）の監視
 function enableGyro() {
+
+    let calibSamples = [];
+    const CALIB_SAMPLE_COUNT = 8;
+    const CALIB_DELAY_MS = 400; // 画面回転が落ち着くまで待つ
+    let calibStartTime = null;
+
     window.addEventListener('deviceorientation', (e) => {
         if (e.beta !== null && e.gamma !== null) {
-            gyroAlpha = e.alpha || 0;
+            // 最初の取得値をゼロ点として記録（ゲーム開始時の姿勢を基準にする）
+            if (!gyroCalibrated) {
+                gyroBetaZero = e.beta || 0;
+                gyroGammaZero = e.gamma || 0;
+                gyroCalibrated = true;
+                console.log('ジャイロ ゼロ点確定:', gyroBetaZero, gyroGammaZero);
+            }
+
             gyroBeta = e.beta || 0;
             gyroGamma = e.gamma || 0;
             gyroEnabled = true;
+
+            const dBeta = gyroBeta - gyroBetaZero;
+            const dGamma = gyroGamma - gyroGammaZero;
             document.getElementById('gyro-indicator').textContent =
-                `ジャイロ: β${gyroBeta.toFixed(1)}° γ${gyroGamma.toFixed(1)}°`;
+                `ジャイロ(差分): β${dBeta.toFixed(1)}° γ${dGamma.toFixed(1)}°`;
+                // `オフセット: β${gyroBetaZero.toFixed(1)}° γ${gyroGammaZero.toFixed(1)}°`;
         }
     }, true);
 }
@@ -338,10 +360,9 @@ function resetBall() {
     ballBody.quaternion.set(0, 0, 0, 1);
 }
 
-// ============================================================
-// カメラ追従
-// ============================================================
-const camOffset = new THREE.Vector3(0, 8, 14);
+// カメラ追従（スムーズ、headingに応じて回転）
+const CAM_DIST = 14;
+const CAM_HEIGHT = 8;
 const camTarget = new THREE.Vector3();
 
 // ============================================================
@@ -370,10 +391,21 @@ function animate() {
 
     // ジャイロ入力（スマホ用 / キーボードに加算）
     if (gyroEnabled) {
-        const gamma = Math.max(-45, Math.min(45, gyroGamma)); // 左右傾き
-        const beta = Math.max(-45, Math.min(45, gyroBeta));  // 前後傾き
-        fx += (gamma / 45) * FORCE_SCALE;
-        fz += (beta / 45) * FORCE_SCALE;
+        const dGamma = Math.max(-45, Math.min(45, gyroBeta  - gyroBetaZero)); // ロール差分（左右傾き）→ 操舵
+        const dBeta  = Math.max(-45, Math.min(45, gyroGamma - gyroGammaZero));  // ピッチ差分（前後傾き）→ 前進
+        // ロールでヘディング（向き）を変化させる（操舵速度）
+        const TURN_RATE = 0.7; // rad/sec 相当の最大旋回速度（調整可）
+        heading += (dGamma / 45) * TURN_RATE * dt;
+
+        // ピッチで前進方向への力（前傾でプラス、後傾でマイナス＝後退）
+        const forwardForce = (dBeta / 45) * FORCE_SCALE;
+
+        // heading=0 を「奥(-z)方向」とした前進ベクトル
+        const dirX = Math.sin(heading);
+        const dirZ = -Math.cos(heading);
+
+        fx += dirX * forwardForce;
+        fz += dirZ * forwardForce;
     }
 
     if (fx !== 0 || fz !== 0) {
@@ -413,11 +445,18 @@ function animate() {
 
     // カメラ追従（スムーズ）
     camTarget.lerp(ballMesh.position, 0.08);
+
+    velocity2d = new THREE.Vector2(ballBody.velocity.x, ballBody.velocity.z);
+    velocity2d.normalize().multiplyScalar(CAM_DIST); // 速度に応じてカメラを少し先行させる
+
+    const camOffsetX = -Math.sin(heading) * CAM_DIST;
+    const camOffsetZ = Math.cos(heading) * CAM_DIST;
+
     camera.position.lerp(
         new THREE.Vector3(
-            camTarget.x + camOffset.x,
-            camTarget.y + camOffset.y,
-            camTarget.z + camOffset.z
+            camTarget.x + camOffsetX,
+            camTarget.y + CAM_HEIGHT,
+            camTarget.z + camOffsetZ
         ), 0.07
     );
     camera.lookAt(camTarget);
@@ -431,6 +470,7 @@ function animate() {
 
     renderer.render(scene, camera);
 }
+
 
 // ============================================================
 // スタートボタン
@@ -447,6 +487,9 @@ document.getElementById('start-btn').addEventListener('click', async () => { // 
             console.warn("画面固定に失敗:", error);
         }
     }
+
+    heading = 0; // ゲーム開始時の向きをリセット
+    gyroCalibrated = false; // ジャイロのゼロ点を再キャリブレーション
 
     requestGyro();
     document.getElementById('start-overlay').style.display = 'none';
