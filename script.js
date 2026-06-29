@@ -435,7 +435,19 @@ function animate() {
 // ============================================================
 // スタートボタン
 // ============================================================
-document.getElementById('start-btn').addEventListener('click', () => {
+document.getElementById('start-btn').addEventListener('click', async () => { // ★ async を追加
+    // 画面を横向きに固定（失敗してもゲームが進むように try-catch にする）
+    if (typeof screen.orientation !== 'undefined' && typeof screen.orientation.lock === 'function') {
+        try {
+            // フルスクリーン要求(これをしないと画面固定が聞かない模様(android Chrome))
+            await document.documentElement.requestFullscreen();
+            await screen.orientation.lock('landscape-primary');
+            console.log("横画面に固定しました");
+        } catch (error) {
+            console.warn("画面固定に失敗:", error);
+        }
+    }
+
     requestGyro();
     document.getElementById('start-overlay').style.display = 'none';
     prevPos.copy(new THREE.Vector3(0, BALL_R, 0));
