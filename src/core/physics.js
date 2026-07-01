@@ -19,7 +19,7 @@ export function initPhysics(obstaclesFromRenderer) {
     const ballMat = new CANNON.Material('ball');
     const boxMat = new CANNON.Material('box');
 
-    world.addContactMaterial(new CANNON.ContactMaterial(groundMat, ballMat, { friction: 0.5, restitution: 0.2 }));
+    world.addContactMaterial(new CANNON.ContactMaterial(groundMat, ballMat, { friction: 0.7, restitution: 0.2 }));
     world.addContactMaterial(new CANNON.ContactMaterial(boxMat, ballMat, { friction: 0.3, restitution: 0.4 }));
 
     // 物理地面
@@ -34,9 +34,6 @@ export function initPhysics(obstaclesFromRenderer) {
     addWall(-W, H / 2, 0, 1, H * 2, FIELD_SIZE);
     addWall(0, H / 2, W, FIELD_SIZE, H * 2, 1);
     addWall(0, H / 2, -W, FIELD_SIZE, H * 2, 1);
-
-    // 衝突イベント設定（レンダラー側の配列と連携）
-    setupCollisionHandler(obstaclesFromRenderer, boxMat);
 }
 
 function addWall(x, y, z, sx, sy, sz) {
@@ -67,7 +64,7 @@ export function createCubeBody(x, z, w, h, d, id, boxMat) {
     return body;
 }
 
-function setupCollisionHandler(rendererObstacles, boxMat) {
+export function setupCollisionHandler(rendererObstacles, boxMat) {
     ballBody.addEventListener('collide', (e) => {
         // 衝突した相手が障害物ボディの配列に含まれているか
         const isObstacle = obstacleBodies.some(b => b === e.body);

@@ -5,14 +5,23 @@
 import { 
     initRenderer, createBallMesh, createCubeMesh, renderer, scene, camera,
     ballMesh, ballLight, neonLight1, neonLight2, obstacles 
-} from './renderer.js';
+} from './core/renderer.js';
 
 import { 
-    initPhysics, createBallBody, createCubeBody, world, ballBody 
-} from './physics.js';
+    initPhysics, createBallBody, createCubeBody, world, ballBody, setupCollisionHandler
+} from './core/physics.js';
+
+
+const debug_elm = document.getElementById('gyro-value');
+window.addEventListener('deviceorientation', (e) => {
+    if (e.alpha !== null && e.beta !== null && e.gamma !== null) {
+        debug_elm.textContent = `ジャイロ値: α${e.alpha.toFixed(1)}° β${e.beta.toFixed(1)}° γ${e.gamma.toFixed(1)}°`;
+    }
+}, true);
 
 const BALL_R = 0.6;
-const FORCE_SCALE = 22;
+const FORCE_SCALE = 60;
+const HEADING_SCALE = 2.0;
 const CAM_DIST = 14;
 const CAM_HEIGHT = 8;
 
@@ -54,6 +63,8 @@ function init() {
     // 物理世界の初期化（レンダラー側の配列への参照を渡す）
     initPhysics(obstacles);
     createBallBody(BALL_R);
+    console.log("Ball body created:", ballBody);
+    setupCollisionHandler(obstacles);
 
     // 障害物の生成（MeshとBodyをIDで紐づけ）
     const boxMat = world.materials.find(m => m.name === 'box');
@@ -96,6 +107,7 @@ function setupInputEvents() {
             try {
                 await document.documentElement.requestFullscreen();
                 await screen.orientation.lock('landscape-primary');
+                await new Promise(resolve => setTimeout(resolve, 300));
             } catch (error) {
                 console.warn("画面固定に失敗:", error);
             }
@@ -142,7 +154,8 @@ function enableGyro() {
             const dBeta = gyroBeta - gyroBetaZero;
             const dGamma = gyroGamma - gyroGammaZero;
             document.getElementById('gyro-indicator').textContent =
-                `ジャイロ(差分): β${dBeta.toFixed(1)}° γ${dGamma.toFixed(1)}°`;
+
+                `絶対値:β${e.beta.toFixed(1)}° γ${e.gamma.toFixed(1)}°,ゼロ点: β${gyroBetaZero.toFixed(1)}° γ${gyroGammaZero.toFixed(1)}°, 差分: β${dBeta.toFixed(1)}° γ${dGamma.toFixed(1)}°`;
         }
     }, true);
 }
@@ -168,23 +181,28 @@ function enableMotion() {
 function animate() {
     requestAnimationFrame(animate);
     if (!started) return;
-
     const now = performance.now();
     const dt = Math.min((now - lastTime) / 1000, 0.05);
     lastTime = now;
 
-    let fx = 0, fz = 0;
-    if (keys['ArrowUp'] || keys['KeyW']) fz -= FORCE_SCALE;
-    if (keys['ArrowDown'] || keys['KeyS']) fz += FORCE_SCALE;
-    if (keys['ArrowLeft'] || keys['KeyA']) fx -= FORCE_SCALE;
-    if (keys['ArrowRight'] || keys['KeyD']) fx += FORCE_SCALE;
+    let fx = 0, fz = 0, forwardForce = 0;
 
-    if (gyroEnabled) {
-        const dGamma = Math.max(-45, Math.min(45, gyroBeta  - gyroBetaZero));
-        const dBeta  = Math.max(-45, Math.min(45, gyroGamma - gyroGammaZero));
-        heading += (dGamma / 45) * 0.7 * dt;
 
-        const forwardForce = (dBeta / 45) * FORCE_SCALE;
+    // キーボード入力の場合
+    if(!gyroEnabled) {
+        if (keys['ArrowUp'] || keys['KeyW']) forwardForce += FORCE_SCALE;
+        if (keys['ArrowDown'] || keys['KeyS']) forwardForce -= FORCE_SCALE;
+        if (keys['ArrowLeft'] || keys['KeyA']) heading -= HEADING_SCALE * dt;
+        if (keys['ArrowRight'] || keys['KeyD']) heading += HEADING_SCALE * dt;
+        fx += Math.sin(heading) * forwardForce;
+        fz += -Math.cos(heading) * forwardForce;
+    }
+    // ジャイロ入力の場合
+    else{
+        const dBeta = Math.max(-45, Math.min(45, gyroBeta  - gyroBetaZero));
+        const dGamma  = Math.max(-45, Math.min(45, gyroGamma - gyroGammaZero));
+        heading += (dBeta / 45) * HEADING_SCALE * dt;
+        forwardForce = (dGamma / 45) * FORCE_SCALE;
         fx += Math.sin(heading) * forwardForce;
         fz += -Math.cos(heading) * forwardForce;
     }
