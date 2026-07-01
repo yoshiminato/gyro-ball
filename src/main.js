@@ -11,13 +11,8 @@ import {
     initPhysics, createBallBody, createCubeBody, world, ballBody, setupCollisionHandler
 } from './core/physics.js';
 
+import { gyroBeta, gyroGamma, gyroBetaZero, gyroGammaZero, gyroEnabled, gyroCalibrated, requestGyro, resetCalibration } from './input/gyro.js';
 
-const debug_elm = document.getElementById('gyro-value');
-window.addEventListener('deviceorientation', (e) => {
-    if (e.alpha !== null && e.beta !== null && e.gamma !== null) {
-        debug_elm.textContent = `ジャイロ値: α${e.alpha.toFixed(1)}° β${e.beta.toFixed(1)}° γ${e.gamma.toFixed(1)}°`;
-    }
-}, true);
 
 const BALL_R = 0.6;
 const FORCE_SCALE = 60;
@@ -25,10 +20,6 @@ const HEADING_SCALE = 2.0;
 const CAM_DIST = 14;
 const CAM_HEIGHT = 8;
 
-let gyroAlpha = 0, gyroBeta = 0, gyroGamma = 0;
-let gyroEnabled = false;
-let gyroCalibrated = false;
-let gyroBetaZero = 0, gyroGammaZero = 0;
 let heading = 0;
 const keys = {};
 
@@ -40,17 +31,17 @@ const camTarget = new THREE.Vector3();
 
 // 障害物データ定義
 const obstacleDefs = [
-    [-20, -10, 12, 2, 1], [-10, -10, 12, 2, 1], [0, -10, 12, 2, 1],
-    [20, 15, 1, 3, 12], [-20, 15, 1, 3, 12],
-    [10, 5, 3, 4, 3], [-10, 5, 3, 4, 3],
-    [0, 20, 8, 1.5, 1], [0, -20, 8, 1.5, 1],
-    [15, -15, 2, 2, 2], [-15, 15, 2, 2, 2],
-    [25, 0, 3, 3, 3], [-25, 5, 2, 2.5, 2],
-    [5, 30, 1.5, 4, 1.5], [-5, -30, 1.5, 4, 1.5],
-    [30, -20, 2, 1.5, 2], [-30, 20, 2, 1.5, 2],
-    [10, -25, 4, 1, 4], [-10, 25, 4, 1, 4],
-    [35, 10, 1.5, 5, 1.5], [-35, -10, 1.5, 5, 1.5],
-    [20, 30, 2, 2, 2], [-20, -30, 2, 2, 2],
+    // [-20, -10, 12, 2, 1], [-10, -10, 12, 2, 1], [0, -10, 12, 2, 1],
+    // [20, 15, 1, 3, 12], [-20, 15, 1, 3, 12],
+    // [10, 5, 3, 4, 3], [-10, 5, 3, 4, 3],
+    // [0, 20, 8, 1.5, 1], [0, -20, 8, 1.5, 1],
+    // [15, -15, 2, 2, 2], [-15, 15, 2, 2, 2],
+    // [25, 0, 3, 3, 3], [-25, 5, 2, 2.5, 2],
+    // [5, 30, 1.5, 4, 1.5], [-5, -30, 1.5, 4, 1.5],
+    // [30, -20, 2, 1.5, 2], [-30, 20, 2, 1.5, 2],
+    // [10, -25, 4, 1, 4], [-10, 25, 4, 1, 4],
+    // [35, 10, 1.5, 5, 1.5], [-35, -10, 1.5, 5, 1.5],
+    // [20, 30, 2, 2, 2], [-20, -30, 2, 2, 2],
 ];
 
 // 初期化シーケンス
@@ -113,7 +104,7 @@ function setupInputEvents() {
             }
         }
         heading = 0;
-        gyroCalibrated = false;
+        resetCalibration();
         requestGyro();
         document.getElementById('start-overlay').style.display = 'none';
         prevPos.copy(new THREE.Vector3(0, BALL_R, 0));
@@ -123,59 +114,6 @@ function setupInputEvents() {
     });
 }
 
-const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-function requestGyro() {
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        DeviceOrientationEvent.requestPermission()
-            .then(perm => {
-                if (perm === 'granted') {
-                    enableGyro();
-                    enableMotion();
-                }
-            }).catch(console.error);
-    } else if (isMobile) {
-        enableGyro();
-        enableMotion();
-    }
-}
-
-function enableGyro() {
-    window.addEventListener('deviceorientation', (e) => {
-        if (e.beta !== null && e.gamma !== null) {
-            if (!gyroCalibrated) {
-                gyroBetaZero = e.beta || 0;
-                gyroGammaZero = e.gamma || 0;
-                gyroCalibrated = true;
-            }
-            gyroBeta = e.beta || 0;
-            gyroGamma = e.gamma || 0;
-            gyroEnabled = true;
-
-            const dBeta = gyroBeta - gyroBetaZero;
-            const dGamma = gyroGamma - gyroGammaZero;
-            document.getElementById('gyro-indicator').textContent =
-
-                `絶対値:β${e.beta.toFixed(1)}° γ${e.gamma.toFixed(1)}°,ゼロ点: β${gyroBetaZero.toFixed(1)}° γ${gyroGammaZero.toFixed(1)}°, 差分: β${dBeta.toFixed(1)}° γ${dGamma.toFixed(1)}°`;
-        }
-    }, true);
-}
-
-function enableMotion() {
-    let lastJumpTime = 0;
-    window.addEventListener('devicemotion', (e) => {
-        if (!e.acceleration) return;
-        const ax = e.acceleration.x || 0;
-        const ay = e.acceleration.y || 0;
-        const az = e.acceleration.z || 0;
-        const totalAcceleration = Math.sqrt(ax * ax + ay * ay + az * az);
-        const now = performance.now();
-
-        if (totalAcceleration > 18 && (now - lastJumpTime > 300)) {
-            triggerJump();
-            lastJumpTime = now;
-        }
-    }, true);
-}
 
 // メインループ
 function animate() {
