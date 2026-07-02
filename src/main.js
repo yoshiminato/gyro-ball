@@ -15,12 +15,15 @@ import { gyroBeta, gyroGamma, gyroBetaZero, gyroGammaZero, gyroEnabled, gyroCali
 
 import { registerKeyEvent} from './input/keyboard.js';
 
-import { Ball } from './ball.js';
+import { Ball } from './obj/ball.js';
 
-import { Cube } from './enemies/cube.js';
+import { Cube } from './obj/cube.js';
+
+import { Snake } from './obj/snake.js';
 
 let ball = null;
 let cube = null;
+let snale = null;
 
 const CAM_DIST = 14;
 const CAM_HEIGHT = 8;
@@ -56,7 +59,8 @@ function init() {
     // 物理世界の初期化（レンダラー側の配列への参照を渡す）
     initPhysics(obstacles);
     ball = new Ball(); 
-    cube = new Cube(6, 0, 3, 3, 3);
+    // cube = new Cube(6, 0, 3, 3, 3);
+    snale = new Snake(7, 7);
     setupCollisionHandler(obstacles);
 
     // 障害物の生成（MeshとBodyをIDで紐づけ）
@@ -115,17 +119,22 @@ function animate() {
 
     ball.clampVelocity();
 
-    cube.chase(ball.body.position.x, ball.body.position.z);
+    // cube.chase(ball.body.position.x, ball.body.position.z);
+    snale.chase(ball.body.position.x, ball.body.position.z);
 
     // 物理シミュレーションを1ステップ進める
     world.step(1 / 60, dt, 3);
 
     // Three.js側の位置・回転を物理ボディと同期
-    ball.mesh.position.copy(ball.body.position);
-    ball.mesh.quaternion.copy(ball.body.quaternion);
+    // ball.mesh.position.copy(ball.body.position);
+    // ball.mesh.quaternion.copy(ball.body.quaternion);
 
-    cube.mesh.position.copy(cube.body.position);
-    cube.mesh.quaternion.copy(cube.body.quaternion);
+    // cube.mesh.position.copy(cube.body.position);
+    // cube.mesh.quaternion.copy(cube.body.quaternion);
+
+    ball.updateVisuals();
+    // cube.updateVisuals();
+    snale.updateVisuals();
 
     // 距離計算
     const bp = ball.mesh.position;
