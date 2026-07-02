@@ -8,12 +8,14 @@ import {
 } from './core/renderer.js';
 
 import { 
-    initPhysics, createBallBody, createCubeBody, world, ballBody, setupCollisionHandler
+    initPhysics, createBallBody, createCubeBody, world, setupCollisionHandler
 } from './core/physics.js';
 
 import { gyroBeta, gyroGamma, gyroBetaZero, gyroGammaZero, gyroEnabled, gyroCalibrated, requestGyro, resetCalibration } from './input/gyro.js';
 
 import { registerKeyEvent} from './input/keyboard.js';
+
+import {registerTouchEvent} from './input/touch.js';
 
 import { Ball } from './obj/ball.js';
 
@@ -79,6 +81,7 @@ function init() {
 
 function setupInputEvents() {
     registerKeyEvent(ball);
+    registerTouchEvent(ball);
 
     document.getElementById('start-btn').addEventListener('click', async (e) => {
 
