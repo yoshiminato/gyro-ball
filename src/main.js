@@ -13,6 +13,8 @@ import {
 
 import { gyroBeta, gyroGamma, gyroBetaZero, gyroGammaZero, gyroEnabled, gyroCalibrated, requestGyro, resetCalibration } from './input/gyro.js';
 
+import { registerKeyEvent} from './input/keyboard.js';
+
 import { Ball } from './ball.js';
 
 let ball = null;
@@ -23,7 +25,7 @@ const HEADING_SCALE = 2.0;
 const CAM_DIST = 14;
 const CAM_HEIGHT = 8;
 
-const keys = {};
+// const keys = {};
 
 let lastTime = performance.now();
 let started = false;
@@ -89,12 +91,13 @@ function resetBall() {
 }
 
 function setupInputEvents() {
-    document.addEventListener('keydown', e => {
-        keys[e.code] = true;
-        if (e.code === 'Space') triggerJump();
-        if (e.code === 'KeyR') resetBall();
-    });
-    document.addEventListener('keyup', e => { keys[e.code] = false; });
+    // document.addEventListener('keydown', e => {
+    //     keys[e.code] = true;
+    //     if (e.code === 'Space') triggerJump();
+    //     if (e.code === 'KeyR') resetBall();
+    // });
+    // document.addEventListener('keyup', e => { keys[e.code] = false; });
+    registerKeyEvent();
 
     document.getElementById('start-btn').addEventListener('click', async (e) => {
 
@@ -131,20 +134,21 @@ function animate() {
     let fx = 0, fz = 0, forwardForce = 0;
 
 
-    // キーボード入力の場合
-    if(!gyroEnabled) {
-        if (keys['ArrowUp'] || keys['KeyW']) forwardForce += FORCE_SCALE;
-        if (keys['ArrowDown'] || keys['KeyS']) forwardForce -= FORCE_SCALE;
-        if (keys['ArrowLeft'] || keys['KeyA']) ball.heading -= HEADING_SCALE * dt;
-        if (keys['ArrowRight'] || keys['KeyD']) ball.heading += HEADING_SCALE * dt;
-        fx += Math.sin(ball.heading) * forwardForce;
-        fz += -Math.cos(ball.heading) * forwardForce;
-    }
-    // ジャイロ入力の場合
-    else{
-        ball.calclateForce(dt);
-    }
+    // // キーボード入力の場合
+    // if(!gyroEnabled) {
+    //     if (keys['ArrowUp'] || keys['KeyW']) forwardForce += FORCE_SCALE;
+    //     if (keys['ArrowDown'] || keys['KeyS']) forwardForce -= FORCE_SCALE;
+    //     if (keys['ArrowLeft'] || keys['KeyA']) ball.heading -= HEADING_SCALE * dt;
+    //     if (keys['ArrowRight'] || keys['KeyD']) ball.heading += HEADING_SCALE * dt;
+    //     fx += Math.sin(ball.heading) * forwardForce;
+    //     fz += -Math.cos(ball.heading) * forwardForce;
+    // }
+    // // ジャイロ入力の場合
+    // else{
+    //     ball.calclateForce(dt);
+    // }
 
+    ball.calculateForce(dt);
     ball.applyForce();
 
     const maxV = 15;
