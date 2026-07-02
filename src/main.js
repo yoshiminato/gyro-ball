@@ -19,13 +19,8 @@ import { Ball } from './ball.js';
 
 let ball = null;
 
-const BALL_R = 0.6;
-const FORCE_SCALE = 60;
-const HEADING_SCALE = 2.0;
 const CAM_DIST = 14;
 const CAM_HEIGHT = 8;
-
-// const keys = {};
 
 let lastTime = performance.now();
 let started = false;
@@ -91,12 +86,6 @@ function resetBall() {
 }
 
 function setupInputEvents() {
-    // document.addEventListener('keydown', e => {
-    //     keys[e.code] = true;
-    //     if (e.code === 'Space') triggerJump();
-    //     if (e.code === 'KeyR') resetBall();
-    // });
-    // document.addEventListener('keyup', e => { keys[e.code] = false; });
     registerKeyEvent();
 
     document.getElementById('start-btn').addEventListener('click', async (e) => {
@@ -148,11 +137,6 @@ function animate() {
     // 距離計算
     const bp = ballMesh.position;
     const moved = bp.distanceTo(prevPos);
-    // if (moved > 0.01) {
-    //     totalDist += moved;
-    //     prevPos.copy(bp);
-    //     document.getElementById('dist').textContent = totalDist.toFixed(1);
-    // }
 
     ballLight.position.copy(ballMesh.position);
     ballLight.position.y += 0.5;
