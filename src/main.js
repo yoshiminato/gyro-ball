@@ -133,28 +133,10 @@ function animate() {
 
     let fx = 0, fz = 0, forwardForce = 0;
 
-
-    // // キーボード入力の場合
-    // if(!gyroEnabled) {
-    //     if (keys['ArrowUp'] || keys['KeyW']) forwardForce += FORCE_SCALE;
-    //     if (keys['ArrowDown'] || keys['KeyS']) forwardForce -= FORCE_SCALE;
-    //     if (keys['ArrowLeft'] || keys['KeyA']) ball.heading -= HEADING_SCALE * dt;
-    //     if (keys['ArrowRight'] || keys['KeyD']) ball.heading += HEADING_SCALE * dt;
-    //     fx += Math.sin(ball.heading) * forwardForce;
-    //     fz += -Math.cos(ball.heading) * forwardForce;
-    // }
-    // // ジャイロ入力の場合
-    // else{
-    //     ball.calclateForce(dt);
-    // }
-
     ball.calculateForce(dt);
     ball.applyForce();
 
-    const maxV = 15;
-    if (ballBody.velocity.length() > maxV) {
-        ballBody.velocity.scale(maxV / ballBody.velocity.length(), ballBody.velocity);
-    }
+    ball.clampVelocity();
 
     // 物理シミュレーションを1ステップ進める
     world.step(1 / 60, dt, 3);
@@ -166,11 +148,11 @@ function animate() {
     // 距離計算
     const bp = ballMesh.position;
     const moved = bp.distanceTo(prevPos);
-    if (moved > 0.01) {
-        totalDist += moved;
-        prevPos.copy(bp);
-        document.getElementById('dist').textContent = totalDist.toFixed(1);
-    }
+    // if (moved > 0.01) {
+    //     totalDist += moved;
+    //     prevPos.copy(bp);
+    //     document.getElementById('dist').textContent = totalDist.toFixed(1);
+    // }
 
     ballLight.position.copy(ballMesh.position);
     ballLight.position.y += 0.5;
