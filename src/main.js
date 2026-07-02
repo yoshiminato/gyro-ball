@@ -13,6 +13,9 @@ import {
 
 import { gyroBeta, gyroGamma, gyroBetaZero, gyroGammaZero, gyroEnabled, gyroCalibrated, requestGyro, resetCalibration } from './input/gyro.js';
 
+import { Ball } from './ball.js';
+
+let ball = null;
 
 const BALL_R = 0.6;
 const FORCE_SCALE = 60;
@@ -20,7 +23,6 @@ const HEADING_SCALE = 2.0;
 const CAM_DIST = 14;
 const CAM_HEIGHT = 8;
 
-let heading = 0;
 const keys = {};
 
 let lastTime = performance.now();
@@ -54,6 +56,7 @@ function init() {
     // 物理世界の初期化（レンダラー側の配列への参照を渡す）
     initPhysics(obstacles);
     createBallBody(BALL_R);
+    ball = new Ball(ballBody); 
     console.log("Ball body created:", ballBody);
     setupCollisionHandler(obstacles);
 
@@ -93,7 +96,8 @@ function setupInputEvents() {
     });
     document.addEventListener('keyup', e => { keys[e.code] = false; });
 
-    document.getElementById('start-btn').addEventListener('click', async () => {
+    document.getElementById('start-btn').addEventListener('click', async (e) => {
+
         if (typeof screen.orientation !== 'undefined' && typeof screen.orientation.lock === 'function') {
             try {
                 await document.documentElement.requestFullscreen();
@@ -103,13 +107,14 @@ function setupInputEvents() {
                 console.warn("画面固定に失敗:", error);
             }
         }
-        heading = 0;
+        ball.resetHeading();
         resetCalibration();
         requestGyro();
         document.getElementById('start-overlay').style.display = 'none';
         prevPos.copy(new THREE.Vector3(0, BALL_R, 0));
         lastTime = performance.now();
         started = true;
+
         animate();
     });
 }
@@ -130,25 +135,17 @@ function animate() {
     if(!gyroEnabled) {
         if (keys['ArrowUp'] || keys['KeyW']) forwardForce += FORCE_SCALE;
         if (keys['ArrowDown'] || keys['KeyS']) forwardForce -= FORCE_SCALE;
-        if (keys['ArrowLeft'] || keys['KeyA']) heading -= HEADING_SCALE * dt;
-        if (keys['ArrowRight'] || keys['KeyD']) heading += HEADING_SCALE * dt;
-        fx += Math.sin(heading) * forwardForce;
-        fz += -Math.cos(heading) * forwardForce;
+        if (keys['ArrowLeft'] || keys['KeyA']) ball.heading -= HEADING_SCALE * dt;
+        if (keys['ArrowRight'] || keys['KeyD']) ball.heading += HEADING_SCALE * dt;
+        fx += Math.sin(ball.heading) * forwardForce;
+        fz += -Math.cos(ball.heading) * forwardForce;
     }
     // ジャイロ入力の場合
     else{
-        const dBeta = Math.max(-45, Math.min(45, gyroBeta  - gyroBetaZero));
-        const dGamma  = Math.max(-45, Math.min(45, gyroGamma - gyroGammaZero));
-        heading += (dBeta / 45) * HEADING_SCALE * dt;
-        forwardForce = (dGamma / 45) * FORCE_SCALE;
-        fx += Math.sin(heading) * forwardForce;
-        fz += -Math.cos(heading) * forwardForce;
+        ball.calclateForce(dt);
     }
 
-    if (fx !== 0 || fz !== 0) {
-        const bp = ballBody.position;
-        ballBody.applyForce(new CANNON.Vec3(fx, 0, fz), new CANNON.Vec3(bp.x, bp.y, bp.z));
-    }
+    ball.applyForce();
 
     const maxV = 15;
     if (ballBody.velocity.length() > maxV) {
@@ -176,8 +173,8 @@ function animate() {
 
     // カメラ追従
     camTarget.lerp(ballMesh.position, 0.08);
-    const camOffsetX = -Math.sin(heading) * CAM_DIST;
-    const camOffsetZ = Math.cos(heading) * CAM_DIST;
+    const camOffsetX = -Math.sin(ball.heading) * CAM_DIST;
+    const camOffsetZ = Math.cos(ball.heading) * CAM_DIST;
 
     camera.position.lerp(
         new THREE.Vector3(camTarget.x + camOffsetX, camTarget.y + CAM_HEIGHT, camTarget.z + camOffsetZ), 
