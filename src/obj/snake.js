@@ -6,7 +6,7 @@ export class Snake extends DynamicObject {
 
     static id = 0;
     static MASS = 2;
-    static FORCE_SCALE = 80;
+    static FORCE_SCALE = 60;
 
     constructor(x, z) {
 
@@ -56,6 +56,9 @@ export class Snake extends DynamicObject {
             ),
             p
         );
+
+        // 顔を進行方向へ向ける
+        this.faceYaw = Math.atan2(dx, dz);
     }
 
     updateVisuals() {
@@ -66,11 +69,16 @@ export class Snake extends DynamicObject {
                 this.bodies[i].position
             );
 
+            if(i == 0) {
+                this.meshes[i].rotation.set(0, this.faceYaw, 0); 
+                continue;
+            }
             this.meshes[i].quaternion.copy(
                 this.bodies[i].quaternion
             );
 
         }
+
 
     }
 

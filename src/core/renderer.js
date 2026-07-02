@@ -119,6 +119,83 @@ export function createCubeMesh(x, z, w, h, d, colorIdx, bodyId) {
     return mesh;
 }
 
+export function createSnakeMesh(x, z, radius, count) {
+
+    const meshes = [];
+
+    for (let i = 0; i < count; i++) {
+
+        const r = radius * Math.pow(0.9, i);
+
+        const material = new THREE.MeshPhongMaterial({
+            color: 0x222222,
+            emissive: i === 0 ? 0xaa0000 : 0x330000,
+            shininess: 120
+        });
+
+        const mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(r, 24, 24),
+            material
+        );
+
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+
+        scene.add(mesh);
+
+        if (i === 0) {
+
+            // 白目
+            const eyeGeo = new THREE.SphereGeometry(r * 0.18, 16, 16);
+            const eyeMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
+                
+            const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+            leftEye.position.set(-r * 0.28, r * 0.12, r * 0.82);
+                
+            const rightEye = leftEye.clone();
+            rightEye.position.x = r * 0.28;
+                
+            mesh.add(leftEye);
+            mesh.add(rightEye);
+                
+            // 瞳
+            const pupilGeo = new THREE.SphereGeometry(r * 0.07, 12, 12);
+            const pupilMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                
+            const leftPupil = new THREE.Mesh(pupilGeo, pupilMat);
+            leftPupil.position.set(0, 0, r * 0.12);
+            leftEye.add(leftPupil);
+                
+            const rightPupil = leftPupil.clone();
+            rightEye.add(rightPupil);
+                
+            // 口
+            const mouthGeo = new THREE.TorusGeometry(
+                r * 0.18,
+                r * 0.025,
+                8,
+                24,
+                Math.PI
+            );
+        
+            const mouthMat = new THREE.MeshBasicMaterial({
+                color: 0x111111
+            });
+        
+            const mouth = new THREE.Mesh(mouthGeo, mouthMat);
+        
+            mouth.rotation.z = Math.PI;
+            mouth.position.set(0, -r * 0.18, r * 0.82);
+        
+            mesh.add(mouth);
+        }
+
+        meshes.push(mesh);
+    }
+
+    return meshes;
+}
+
 function createLights() {
     const ambientLight = new THREE.AmbientLight(0x223355, 0.8);
     scene.add(ambientLight);

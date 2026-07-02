@@ -1,4 +1,3 @@
-import { Enemy } from './enemy.js';
 import { createCubeBody } from '../core/physics.js';
 import { createCubeMesh } from '../core/renderer.js';
 import { DynamicObject } from './dynamicObject.js';

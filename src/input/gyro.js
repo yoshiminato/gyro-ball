@@ -1,4 +1,4 @@
-import { Ball } from '../ball.js';
+import { Ball } from '../obj/ball.js';
 
 export let gyroBeta = 0;
 export let gyroGamma = 0;

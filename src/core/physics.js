@@ -66,6 +66,73 @@ export function createCubeBody(x, z, w, h, d, id, mass = 2, boxMat) {
     return body;
 }
 
+export function createSnakeBody(
+    x,
+    z,
+    radius,
+    count
+) {
+
+    const bodies = [];
+    const constraints = [];
+    const radii = [];
+
+    for (let i = 0; i < count; i++) {
+
+        // 頭が一番大きく、尻尾ほど小さい
+        const r = radius * Math.pow(0.9, i);
+        radii.push(r);
+
+        const mass = (i === 0) ? 2 : 0.5;
+
+        const body = new CANNON.Body({
+            mass,
+            linearDamping: 0.2,
+            angularDamping: 0.95
+        });
+
+        body.addShape(new CANNON.Sphere(r));
+
+        if (i === 0) {
+            body.position.set(x, r, z);
+        } else {
+            const prevR = radii[i - 1];
+            const spacing = (prevR + r) * 0.95;
+
+            body.position.set(
+                x,
+                r,
+                bodies[i - 1].position.z - spacing
+            );
+        }
+
+        world.addBody(body);
+        obstacleBodies.push(body);
+        bodies.push(body);
+
+        if (i > 0) {
+
+            const prevR = radii[i - 1];
+            const spacing = (prevR + r) * 0.95;
+
+            const c = new CANNON.DistanceConstraint(
+                bodies[i - 1],
+                body,
+                spacing,
+                1e6
+            );
+
+            world.addConstraint(c);
+            constraints.push(c);
+        }
+    }
+
+    return {
+        bodies,
+        constraints
+    };
+}
+
 export function setupCollisionHandler(rendererObstacles, boxMat) {
     ballBody.addEventListener('collide', (e) => {
         // 衝突した相手が障害物ボディの配列に含まれているか

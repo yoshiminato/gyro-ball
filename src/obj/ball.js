@@ -40,7 +40,7 @@ export class Ball extends DynamicObject{
     // ジャンプ(簡易実装)
     triggerJump() {
         if (this.body.position.y < 2.0) {
-            this.body.velocity.y = 25;
+            this.body.velocity.y = 50;
         }
     }
 

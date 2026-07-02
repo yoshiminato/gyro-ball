@@ -125,13 +125,6 @@ function animate() {
     // 物理シミュレーションを1ステップ進める
     world.step(1 / 60, dt, 3);
 
-    // Three.js側の位置・回転を物理ボディと同期
-    // ball.mesh.position.copy(ball.body.position);
-    // ball.mesh.quaternion.copy(ball.body.quaternion);
-
-    // cube.mesh.position.copy(cube.body.position);
-    // cube.mesh.quaternion.copy(cube.body.quaternion);
-
     ball.updateVisuals();
     // cube.updateVisuals();
     snale.updateVisuals();
