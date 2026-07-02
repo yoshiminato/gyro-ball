@@ -6,7 +6,7 @@ export let world, ballBody;
 export const obstacleBodies = []; // main.jsや衝突判定で参照用
 let hitCount = 0;
 
-const FIELD_SIZE = 100;
+const FIELD_SIZE = 20//100;
 
 export function initPhysics(obstaclesFromRenderer) {
     world = new CANNON.World();
@@ -54,6 +54,7 @@ export function createBallBody(radius) {
     return ballBody;
 }
 
+
 export function createCubeBody(x, z, w, h, d, id, boxMat) {
     const body = new CANNON.Body({ mass: 0, material: boxMat });
     body.addShape(new CANNON.Box(new CANNON.Vec3(w / 2, h / 2, d / 2)));
@@ -70,7 +71,7 @@ export function setupCollisionHandler(rendererObstacles, boxMat) {
         const isObstacle = obstacleBodies.some(b => b === e.body);
         if (isObstacle) {
             hitCount++;
-            document.getElementById('hits').textContent = hitCount;
+            // document.getElementById('hits').textContent = hitCount;
 
             // renderer側のエフェクト対象をIDで探す
             const obs = rendererObstacles.find(o => o.bodyId === e.body.id);

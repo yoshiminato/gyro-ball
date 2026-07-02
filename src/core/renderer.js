@@ -91,6 +91,7 @@ export function createBallMesh(radius) {
 
     ballLight = new THREE.PointLight(0xff7744, 1.5, 6);
     scene.add(ballLight);
+    return ballMesh;
 }
 
 export function createCubeMesh(x, z, w, h, d, colorIdx, bodyId) {

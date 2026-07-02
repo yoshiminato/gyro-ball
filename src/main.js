@@ -3,8 +3,8 @@
 // ============================================================
 
 import { 
-    initRenderer, createBallMesh, createCubeMesh, renderer, scene, camera,
-    ballMesh, ballLight, neonLight1, neonLight2, obstacles 
+    initRenderer, createCubeMesh, renderer, scene, camera,
+    ballLight, neonLight1, neonLight2, obstacles 
 } from './core/renderer.js';
 
 import { 
@@ -48,13 +48,11 @@ init();
 
 function init() {
     initRenderer();
-    createBallMesh(BALL_R);
+    // createBallMesh(BALL_R);
     
     // 物理世界の初期化（レンダラー側の配列への参照を渡す）
     initPhysics(obstacles);
-    createBallBody(BALL_R);
-    ball = new Ball(ballBody); 
-    console.log("Ball body created:", ballBody);
+    ball = new Ball(); 
     setupCollisionHandler(obstacles);
 
     // 障害物の生成（MeshとBodyをIDで紐づけ）
@@ -71,22 +69,8 @@ function init() {
     renderer.render(scene, camera);
 }
 
-// 共通ジャンプ
-function triggerJump() {
-    if (ballBody.position.y < 2.0) {
-        ballBody.velocity.y = 25;
-    }
-}
-
-function resetBall() {
-    ballBody.position.set(0, BALL_R + 1, 0);
-    ballBody.velocity.set(0, 0, 0);
-    ballBody.angularVelocity.set(0, 0, 0);
-    ballBody.quaternion.set(0, 0, 0, 1);
-}
-
 function setupInputEvents() {
-    registerKeyEvent();
+    registerKeyEvent(ball);
 
     document.getElementById('start-btn').addEventListener('click', async (e) => {
 
@@ -103,7 +87,7 @@ function setupInputEvents() {
         resetCalibration();
         requestGyro();
         document.getElementById('start-overlay').style.display = 'none';
-        prevPos.copy(new THREE.Vector3(0, BALL_R, 0));
+        prevPos.copy(new THREE.Vector3(0, Ball.BALL_R, 0));
         lastTime = performance.now();
         started = true;
 
@@ -131,18 +115,18 @@ function animate() {
     world.step(1 / 60, dt, 3);
 
     // Three.js側の位置・回転を物理ボディと同期
-    ballMesh.position.copy(ballBody.position);
-    ballMesh.quaternion.copy(ballBody.quaternion);
+    ball.mesh.position.copy(ball.body.position);
+    ball.mesh.quaternion.copy(ball.body.quaternion);
 
     // 距離計算
-    const bp = ballMesh.position;
+    const bp = ball.mesh.position;
     const moved = bp.distanceTo(prevPos);
 
-    ballLight.position.copy(ballMesh.position);
+    ballLight.position.copy(ball.mesh.position);
     ballLight.position.y += 0.5;
 
     // カメラ追従
-    camTarget.lerp(ballMesh.position, 0.08);
+    camTarget.lerp(ball.mesh.position, 0.08);
     const camOffsetX = -Math.sin(ball.heading) * CAM_DIST;
     const camOffsetZ = Math.cos(ball.heading) * CAM_DIST;
 
