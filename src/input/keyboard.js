@@ -4,11 +4,11 @@ const keys = {};
 
 const FORCE_COEF = 0.75;
 
-export function registerKeyEvent() {
+export function registerKeyEvent(ball) {
     document.addEventListener('keydown', e => {
         keys[e.code] = true;
-        if (e.code === 'Space') triggerJump();
-        if (e.code === 'KeyR') resetBall();
+        if (e.code === 'Space') ball.triggerJump();
+        if (e.code === 'KeyR') ball.resetPosition();
     });
     document.addEventListener('keyup', e => { keys[e.code] = false; });
 }

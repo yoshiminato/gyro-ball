@@ -116,6 +116,7 @@ export function createCubeMesh(x, z, w, h, d, colorIdx, bodyId) {
 
     // 物理ボディと紐づけるためにオブジェクトとして配列に保存
     obstacles.push({ mesh, bodyId, originalColor: col, mat });
+    return mesh;
 }
 
 function createLights() {

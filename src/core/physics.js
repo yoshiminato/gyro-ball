@@ -6,7 +6,7 @@ export let world, ballBody;
 export const obstacleBodies = []; // main.jsや衝突判定で参照用
 let hitCount = 0;
 
-const FIELD_SIZE = 20//100;
+const FIELD_SIZE = 50//100;
 
 export function initPhysics(obstaclesFromRenderer) {
     world = new CANNON.World();
@@ -55,8 +55,9 @@ export function createBallBody(radius) {
 }
 
 
-export function createCubeBody(x, z, w, h, d, id, boxMat) {
-    const body = new CANNON.Body({ mass: 0, material: boxMat });
+export function createCubeBody(x, z, w, h, d, id, mass = 2, boxMat) {
+    console.log(`Creating cube body at (${x}, ${z}) with dimensions (${w}, ${h}, ${d}) and mass ${mass}`);
+    const body = new CANNON.Body({ mass: mass, material: boxMat });
     body.addShape(new CANNON.Box(new CANNON.Vec3(w / 2, h / 2, d / 2)));
     body.position.set(x, h / 2, z);
     body.id = id; // メッシュと紐づけるための固有ID
