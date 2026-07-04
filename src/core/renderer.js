@@ -147,7 +147,7 @@ export function createSnakeMesh(x, z, radius, count) {
 
             // 白目
             const eyeGeo = new THREE.SphereGeometry(r * 0.18, 16, 16);
-            const eyeMat = new THREE.MeshPhongMaterial({ color: 0x000000    });
+            const eyeMat = new THREE.MeshPhongMaterial({ color: 0x000000});
  
             const leftEye = new THREE.Mesh(eyeGeo, eyeMat);  
             leftEye.position.set(-r * 0.28, r * 0.12, r * 0.82);
@@ -179,13 +179,13 @@ export function createSnakeMesh(x, z, radius, count) {
             );
         
             const mouthMat = new THREE.MeshBasicMaterial({
-                color: 0x111111
+                color: 0x000000,
             });
         
             const mouth = new THREE.Mesh(mouthGeo, mouthMat);
         
             mouth.rotation.z = Math.PI;
-            mouth.position.set(0, -r * 0.18, r * 0.82);
+            mouth.position.set(0, -r * 0.18, r * 1.02);
         
             mesh.add(mouth);
         }
