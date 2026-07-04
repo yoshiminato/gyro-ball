@@ -12,7 +12,6 @@ export class Cube extends DynamicObject {
         this.id = Cube.id++;
         this.body = createCubeBody(x, z, w, h, d, this.id, Cube.MASS);
         this.mesh = createCubeMesh(x, z, w, h, d, this.id);
-        
     }
 
     generateMesh() {
@@ -38,8 +37,6 @@ export class Cube extends DynamicObject {
 
         this.applyForce();
         this.keepAtitude();
-        
-
     }
 
     keepAtitude() {

@@ -62,7 +62,7 @@ function init() {
     initPhysics(obstacles);
     ball = new Ball(); 
     // cube = new Cube(6, 0, 3, 3, 3);
-    snale = new Snake(7, 7);
+    // snale = new Snake(7, 7);
     setupCollisionHandler(obstacles);
 
     // 障害物の生成（MeshとBodyをIDで紐づけ）
@@ -126,14 +126,14 @@ function animate() {
     ball.clampVelocity();
 
     // cube.chase(ball.body.position.x, ball.body.position.z);
-    snale.chase(ball.body.position.x, ball.body.position.z);
+    // snale.chase(ball.body.position.x, ball.body.position.z);
 
     // 物理シミュレーションを1ステップ進める
     world.step(1 / 60, dt, 3);
 
     ball.updateVisuals();
     // cube.updateVisuals();
-    snale.updateVisuals();
+    // snale.updateVisuals();
 
     // 距離計算
     const bp = ball.mesh.position;

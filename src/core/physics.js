@@ -24,6 +24,7 @@ export function initPhysics(obstaclesFromRenderer) {
 
     // 物理地面
     const groundBody = new CANNON.Body({ mass: 0, material: groundMat });
+    groundBody.name = 'ground';
     groundBody.addShape(new CANNON.Plane());
     groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
     world.addBody(groundBody);

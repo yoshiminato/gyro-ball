@@ -1,3 +1,4 @@
+import { isMobileDevice } from './util.js';
 import { Ball } from '../obj/ball.js';
 
 export let gyroBeta = 0;
@@ -11,8 +12,6 @@ export let gyroCalibrated = false;
 
 let lastGamma = Infinity;
 let lastBeta = Infinity;
-
-const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
 export function requestGyro() {
     try{
@@ -28,7 +27,7 @@ export function requestGyro() {
                     // enableMotion();
                 }
             }).catch(console.error);
-    } else if (isMobile) {
+    } else if (isMobileDevice()) {
         enableGyro();
         // enableMotion();
     }
