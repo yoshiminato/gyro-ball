@@ -77,6 +77,7 @@ function init() {
     
     // 初回描画
     renderer.render(scene, camera);
+
 }
 
 function setupInputEvents() {
@@ -116,6 +117,8 @@ function animate() {
     lastTime = now;
 
     let fx = 0, fz = 0, forwardForce = 0;
+
+    ball.judgeCanJump(world);
 
     ball.calculateForce(dt);
     ball.applyForce();
@@ -158,4 +161,6 @@ function animate() {
     neonLight2.position.z = Math.sin(t * 0.4) * 25;
 
     renderer.render(scene, camera);
+
+    ball.checkGrounded(world);
 }
