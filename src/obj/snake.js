@@ -7,6 +7,8 @@ export class Snake extends DynamicObject {
     static id = 0;
     static MASS = 2;
     static FORCE_SCALE = 60;
+    static JUMP_INTERVAL = 5000;
+    static JUMP_FORCE = 60;
 
     constructor(x, z) {
 
@@ -33,6 +35,8 @@ export class Snake extends DynamicObject {
             this.radius,
             this.segmentCount
         );
+
+        this.nextJumpTime = performance.now() + Snake.JUMP_INTERVAL;
     }
 
     chase(targetX, targetZ) {
@@ -46,16 +50,25 @@ export class Snake extends DynamicObject {
 
         const distance = Math.hypot(dx, dz);
 
-        if (distance < 0.001) return;
+        const fx = dx / distance * Snake.FORCE_SCALE;
+        const fz = dz / distance * Snake.FORCE_SCALE;
 
         head.applyForce(
             new CANNON.Vec3(
-                dx / distance * Snake.FORCE_SCALE,
+                fx,
                 0,
-                dz / distance * Snake.FORCE_SCALE
+                fz
             ),
             p
         );
+
+        if (performance.now() > this.nextJumpTime) {
+            head.applyImpulse(
+                new CANNON.Vec3(fx, Snake.JUMP_FORCE, fz),
+                p
+            );
+            this.nextJumpTime += Snake.JUMP_INTERVAL;
+        }
 
         // 顔を進行方向へ向ける
         this.faceYaw = Math.atan2(dx, dz);
