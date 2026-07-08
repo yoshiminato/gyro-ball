@@ -1,7 +1,7 @@
 import { isMobileDevice, setupGameScreen } from '../util.js';
 
 // ゲーム開始時にスタート画面の削除
-window.addEventListener('game-start', () => {
+window.addEventListener('title-exit', () => {
     const startOverlay = document.getElementById('start-overlay');
     if (startOverlay) 
         startOverlay.remove();

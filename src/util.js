@@ -20,7 +20,7 @@ export async function setupGameScreen(e){
                 await screen.orientation.lock('landscape-primary');
 
             // ゲーム開始イベントを発火
-            const gameStartEvent = new CustomEvent('game-start');
+            const gameStartEvent = new CustomEvent('title-exit');
             window.dispatchEvent(gameStartEvent);
         } catch (error) {
             console.warn("画面固定に失敗:", error);
