@@ -76,7 +76,7 @@ export class Ball extends DynamicObject{
 
 
 
-    // ジャンプ(簡易実装)
+    // ジャンプ
     triggerJump() {
         if(!this.canJump) return;
         

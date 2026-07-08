@@ -1,4 +1,4 @@
-import { Ball } from '../obj/ball.js';
+import { Ball } from '../object/ball.js';
 
 const keys = {};
 

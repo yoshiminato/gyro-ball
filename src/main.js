@@ -2,6 +2,8 @@
 // main.js - コントローラー・メインループ
 // ============================================================
 
+import { showStartPage } from './ui/startPage.js';
+
 import { 
     initRenderer, createCubeMesh, renderer, scene, camera,
     ballLight, neonLight1, neonLight2, obstacles 
@@ -17,11 +19,11 @@ import { registerKeyEvent} from './input/keyboard.js';
 
 import {registerTouchEvent} from './input/touch.js';
 
-import { Ball } from './obj/ball.js';
+import { Ball } from './object/ball.js';
 
-import { Cube } from './obj/cube.js';
+import { Cube } from './object/cube.js';
 
-import { Snake } from './obj/snake.js';
+import { Snake } from './object/snake.js';
 
 let ball = null;
 let cube = null;
@@ -51,12 +53,14 @@ const obstacleDefs = [
     // [20, 30, 2, 2, 2], [-20, -30, 2, 2, 2],
 ];
 
-// 初期化シーケンス
-init();
+
+window.onload = showStartPage;
+
+window.addEventListener('game-start', init);
 
 function init() {
+
     initRenderer();
-    // createBallMesh(BALL_R);
     
     // 物理世界の初期化（レンダラー側の配列への参照を渡す）
     initPhysics(obstacles);
@@ -84,27 +88,15 @@ function setupInputEvents() {
     registerKeyEvent(ball);
     registerTouchEvent(ball);
 
-    document.getElementById('start-btn').addEventListener('click', async (e) => {
-
-        if (typeof screen.orientation !== 'undefined' && typeof screen.orientation.lock === 'function') {
-            try {
-                await document.documentElement.requestFullscreen();
-                await screen.orientation.lock('landscape-primary');
-                await new Promise(resolve => setTimeout(resolve, 300));
-            } catch (error) {
-                console.warn("画面固定に失敗:", error);
-            }
-        }
         ball.resetHeading();
         resetCalibration();
         requestGyro();
-        document.getElementById('start-overlay').style.display = 'none';
         prevPos.copy(new THREE.Vector3(0, Ball.BALL_R, 0));
         lastTime = performance.now();
         started = true;
 
         animate();
-    });
+    // });
 }
 
 

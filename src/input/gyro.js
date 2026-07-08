@@ -1,5 +1,5 @@
-import { isMobileDevice } from './util.js';
-import { Ball } from '../obj/ball.js';
+import { isMobileDevice } from '../util.js';
+import { Ball } from '../object/ball.js';
 
 export let gyroBeta = 0;
 export let gyroGamma = 0;
