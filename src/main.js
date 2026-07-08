@@ -2,7 +2,8 @@
 // main.js - コントローラー・メインループ
 // ============================================================
 
-import { showStartPage } from './ui/startPage.js';
+// import { showStartPage } from './ui/startPage.js';
+import { registerRouterEvents } from './router.js';
 
 import { 
     initRenderer, createCubeMesh, renderer, scene, camera,
@@ -35,7 +36,6 @@ const CAM_HEIGHT = 8;
 let lastTime = performance.now();
 let started = false;
 let totalDist = 0;
-const prevPos = new THREE.Vector3();
 const camTarget = new THREE.Vector3();
 
 // 障害物データ定義
@@ -53,8 +53,9 @@ const obstacleDefs = [
     // [20, 30, 2, 2, 2], [-20, -30, 2, 2, 2],
 ];
 
+setupEvents();
 
-window.onload = showStartPage;
+// window.onload = showStartPage;
 
 window.addEventListener('game-start', init);
 
@@ -77,27 +78,35 @@ function init() {
         createCubeBody(def[0], def[1], def[2], def[3], def[4], id, boxMat);
     });
 
-    setupInputEvents();
+    resetCalibration();
+    requestGyro();
+    lastTime = performance.now();
+    started = true;
+
+
     
     // 初回描画
     renderer.render(scene, camera);
 
 }
 
-function setupInputEvents() {
+function setupEvents() {
+    registerRouterEvents();
     registerKeyEvent(ball);
     registerTouchEvent(ball);
-
-        ball.resetHeading();
-        resetCalibration();
-        requestGyro();
-        prevPos.copy(new THREE.Vector3(0, Ball.BALL_R, 0));
-        lastTime = performance.now();
-        started = true;
-
-        animate();
-    // });
 }
+
+// function setupInputEvents() {
+//     registerKeyEvent(ball);
+//     registerTouchEvent(ball);
+
+//     // ball.resetHeading();
+//     // resetCalibration();
+//     // requestGyro();
+//     // lastTime = performance.now();
+//     // started = true;
+//     // animate();
+// }
 
 
 // メインループ
@@ -129,7 +138,6 @@ function animate() {
 
     // 距離計算
     const bp = ball.mesh.position;
-    const moved = bp.distanceTo(prevPos);
 
     ballLight.position.copy(ball.mesh.position);
     ballLight.position.y += 0.5;

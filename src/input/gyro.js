@@ -15,7 +15,7 @@ let lastBeta = Infinity;
 
 export function requestGyro() {
     try{
-        window.removeEventListener('deviceorientation', saveZeroPoint);
+        window.removeEventListener('deviceorientation', saveZeroPoint, true);
     } catch (error) {
         console.error("Error occurred while removing event listener:", error);
     }
@@ -24,12 +24,10 @@ export function requestGyro() {
             .then(perm => {
                 if (perm === 'granted') {
                     enableGyro();
-                    // enableMotion();
                 }
             }).catch(console.error);
     } else if (isMobileDevice()) {
         enableGyro();
-        // enableMotion();
     }
 }
 
@@ -63,8 +61,6 @@ function saveZeroPoint(e) {
         return;
     };
 
-    console.log(`gammaZero:${e.gamma}`);
-    console.log(`angle:${screen.orientation.angle}`);
     gyroBetaZero = e.beta || 0;
     gyroGammaZero = e.gamma || 0;
     gyroCalibrated = true;    
@@ -72,8 +68,9 @@ function saveZeroPoint(e) {
 
 }
 
-// ジャイロのゼロ点をリセットする
+// ジャイロ関連フラグのリセット
 export function resetCalibration() {
+    gyroEnabled = false;
     gyroCalibrated = false;
     lastBeta = Infinity;
     lastGamma = Infinity;

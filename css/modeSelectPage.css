@@ -1,0 +1,104 @@
+#mode-select-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 5, 20, 0.7);
+    display: flex; /* gridからflexに変更して中央に寄せやすく */
+    align-items: center;
+    justify-content: center;
+    flex-direction: row; /* 横並びベース */
+    flex-wrap: wrap; /* 画面が狭いときは自動で縦並びになる保険 */
+    gap: 4%; /* 隙間をパーセンテージに */
+    padding: 20px;
+    z-index: 100;
+    box-sizing: border-box;
+}
+
+#title-mode-select-page {
+    width: 100%; /* 横いっぱいに広げて上部に固定 */
+    color: #7df;
+    font-size: 28px;
+    text-align: center;
+    margin: 0 0 10px 0;
+}
+
+/* モードごとの枠（パーセンテージ指定） */
+.mode-wrapper {
+    background: rgba(20, 25, 50, 0.8);
+    border: 1px solid #457;
+    border-radius: 12px;
+    padding: 25px;
+    
+    /* 💡 画面幅に対して35%の大きさ（ただし最大300px、最小240pxでブレーキ） */
+    width: 40%;
+    max-width: 300px;
+    min-width: 240px;
+    
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    box-sizing: border-box;
+}
+
+/* 画像サイズ（縦幅を基準にして可変に） */
+.cube-mode-enemy-img,
+.snake-mode-enemy-img {
+    height: 12vh; /* 画面の高さ（Vertical Height）の12%分にする */
+    min-height: 60px;
+    max-height: 100px;
+    width: auto;
+}
+
+/* ボタンの並び */
+.difficulty-select-ui-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+/* ボタンの設定 */
+.difficulty-btn {
+    width: 100%;
+    padding: 12px 0;
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.difficulty-btn:active {
+    opacity: 0.7;
+}
+
+/* 難易度ごとの色 */
+.easy-btn { background: #0288d1; }
+.medium-btn { background: #e65100; }
+.hard-btn { background: #c62828; }
+
+
+#game-start-btn {
+    /* 💡 横いっぱいに広げて、Flexboxの折り返しで一番下に配置させる */
+    width: 100%;
+    max-width: 200px; /* ボタンが広がりすぎないように制限 */
+    margin-top: 15px; /* 上のカードとの間に少し隙間を作る */
+    
+    /* スタート画面のボタンに合わせたデザイン */
+    padding: 12px 30px;
+    background: linear-gradient(135deg, #1a8fff, #7b2fff);
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 0 20px rgba(100, 150, 255, 0.4);
+    transition: transform 0.1s, opacity 0.1s;
+}
+
+#game-start-btn:active {
+    transform: scale(0.95);
+    opacity: 0.9;
+}

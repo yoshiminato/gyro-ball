@@ -36,25 +36,24 @@ export function showModeSelectPage() {
     cubeModeDifficultySelectUiWrapper.className = 'difficulty-select-ui-wrapper';
     
     // 難易度選択のボタン
-    const easyBtn = document.createElement('button');
-    const mediumBtn = document.createElement('button');
-    const hardBtn = document.createElement('button');
-    easyBtn.className = 'difficulty-btn';
-    easyBtn.classList.add('easy-btn');
-    mediumBtn.className = 'difficulty-btn';
-    mediumBtn.classList.add('medium-btn');
-    hardBtn.className = 'difficulty-btn';
-    hardBtn.classList.add('hard-btn');
-
+    const cubeEasyBtn = document.createElement('button');
+    const cubeMediumBtn = document.createElement('button');
+    const cubeHardBtn = document.createElement('button');
+    cubeEasyBtn.className = 'difficulty-btn';
+    cubeEasyBtn.classList.add('easy-btn');
+    cubeMediumBtn.className = 'difficulty-btn';
+    cubeMediumBtn.classList.add('medium-btn');
+    cubeHardBtn.className = 'difficulty-btn';
+    cubeHardBtn.classList.add('hard-btn');
     // 難易度選択
-    easyBtn.addEventListener('click', () => {
-        console.log('Easy mode selected');
+    cubeEasyBtn.addEventListener('click', () => {
+        console.log('Cube: Easy mode selected');
     });
-    mediumBtn.addEventListener('click', () => {
-        console.log('Medium mode selected');
+    cubeMediumBtn.addEventListener('click', () => {
+        console.log('Cube: Medium mode selected');
     });
-    hardBtn.addEventListener('click', () => {
-        console.log('Hard mode selected');
+    cubeHardBtn.addEventListener('click', () => {
+        console.log('Cube: Hard mode selected');
     });
 
 
@@ -92,11 +91,6 @@ export function showModeSelectPage() {
     snakeHardBtn.className = 'difficulty-btn';
     snakeHardBtn.classList.add('hard-btn');
 
-    // ボタンのテキスト（もし必要であれば追加してください）
-    snakeEasyBtn.textContent = 'Easy';
-    snakeMediumBtn.textContent = 'Medium';
-    snakeHardBtn.textContent = 'Hard';
-
     // 難易度選択のイベントリスナー
     snakeEasyBtn.addEventListener('click', () => {
         console.log('Snake: Easy mode selected');
@@ -109,10 +103,16 @@ export function showModeSelectPage() {
     });
 
 
+    // ゲーム開始ボタン
+    const gameStartBtn = document.createElement('button');
+    gameStartBtn.id = 'game-start-btn';
+    gameStartBtn.textContent = 'ゲーム開始';
+
+
     // 要素を追加
-    cubeModeDifficultySelectUiWrapper.appendChild(easyBtn);
-    cubeModeDifficultySelectUiWrapper.appendChild(mediumBtn);
-    cubeModeDifficultySelectUiWrapper.appendChild(hardBtn);
+    cubeModeDifficultySelectUiWrapper.appendChild(cubeEasyBtn);
+    cubeModeDifficultySelectUiWrapper.appendChild(cubeMediumBtn);
+    cubeModeDifficultySelectUiWrapper.appendChild(cubeHardBtn);
     cubeModeWrapper.appendChild(cubeModeEnemyImg);
     cubeModeWrapper.appendChild(cubeModeDifficultySelectUiWrapper);
 
@@ -125,6 +125,20 @@ export function showModeSelectPage() {
     modeSelectOverlay.appendChild(titleText);
     modeSelectOverlay.appendChild(cubeModeWrapper);
     modeSelectOverlay.appendChild(snakeModeWrapper);
+    modeSelectOverlay.appendChild(gameStartBtn);
     document.body.appendChild(modeSelectOverlay);
+
+
+    // 難易度ボタンのテキストを更新
+    const easyBtns = document.querySelectorAll('.easy-btn');
+    const mediumBtns = document.querySelectorAll('.medium-btn');
+    const hardBtns = document.querySelectorAll('.hard-btn'); 
+    easyBtns.forEach(btn => btn.textContent = 'Easy');
+    mediumBtns.forEach(btn => btn.textContent = 'Medium');
+    hardBtns.forEach(btn => btn.textContent = 'Hard');
+
+
+   
+    
 
 }
