@@ -13,7 +13,7 @@ import {
     initPhysics, createBallBody, createCubeBody, world, setupCollisionHandler
 } from './core/physics.js';
 
-import { gyroBeta, gyroGamma, gyroBetaZero, gyroGammaZero, gyroEnabled, gyroCalibrated, requestGyro, resetCalibration } from './input/gyro.js';
+import { requestGyro, resetCalibration } from './input/gyro.js';
 
 import { registerKeyEvent} from './input/keyboard.js';
 
