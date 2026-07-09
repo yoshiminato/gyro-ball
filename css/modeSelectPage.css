@@ -2,37 +2,44 @@
     position: fixed;
     inset: 0;
     background: rgba(5, 5, 20, 0.7);
-    display: flex; /* gridからflexに変更して中央に寄せやすく */
+    display: flex; 
     align-items: center;
     justify-content: center;
-    flex-direction: row; /* 横並びベース */
-    flex-wrap: wrap; /* 画面が狭いときは自動で縦並びになる保険 */
-    gap: 4%; /* 隙間をパーセンテージに */
+    flex-direction: column; /* 💡 rowからcolumn（縦並び）に変更 */
+    gap: 30px;              /* 縦の要素同士の隙間 */
     padding: 20px;
     z-index: 100;
     box-sizing: border-box;
 }
 
+/* 💡 新設：敵の選択カードを横並びにするコンテナ */
+.mode-cards-container {
+    display: flex;
+    flex-direction: row; /* カードは横並び */
+    flex-wrap: wrap;     /* 画面が狭い時は自動で縦並び */
+    justify-content: center;
+    gap: 4%;             /* カード同士の隙間 */
+    width: 100%;
+    box-sizing: border-box;
+}
+
 #title-mode-select-page {
-    width: 100%; /* 横いっぱいに広げて上部に固定 */
+    width: 100%; 
     color: #7df;
     font-size: 28px;
     text-align: center;
-    margin: 0 0 10px 0;
+    margin: 0; /* 余計なマージンをリセット */
 }
 
-/* モードごとの枠（パーセンテージ指定） */
+/* モードごとの枠 */
 .mode-wrapper {
     background: rgba(20, 25, 50, 0.8);
     border: 1px solid #457;
     border-radius: 12px;
     padding: 25px;
-    
-    /* 💡 画面幅に対して35%の大きさ（ただし最大300px、最小240pxでブレーキ） */
     width: 40%;
     max-width: 300px;
     min-width: 240px;
-    
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -40,10 +47,10 @@
     box-sizing: border-box;
 }
 
-/* 画像サイズ（縦幅を基準にして可変に） */
+/* 画像サイズ */
 .cube-mode-enemy-img,
 .snake-mode-enemy-img {
-    height: 12vh; /* 画面の高さ（Vertical Height）の12%分にする */
+    height: 12vh; 
     min-height: 60px;
     max-height: 100px;
     width: auto;
@@ -80,12 +87,9 @@
 
 
 #game-start-btn {
-    /* 💡 横いっぱいに広げて、Flexboxの折り返しで一番下に配置させる */
     width: 100%;
-    max-width: 200px; /* ボタンが広がりすぎないように制限 */
-    margin-top: 15px; /* 上のカードとの間に少し隙間を作る */
-    
-    /* スタート画面のボタンに合わせたデザイン */
+    max-width: 200px; 
+    /* margin-top: 15px; 不要になったので削除可 */
     padding: 12px 30px;
     background: linear-gradient(135deg, #1a8fff, #7b2fff);
     color: #fff;
