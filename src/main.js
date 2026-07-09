@@ -59,7 +59,7 @@ setupEvents();
 
 window.addEventListener('game-start', init);
 
-function init() {
+function init(e) {
 
     initRenderer();
     
@@ -87,6 +87,8 @@ function init() {
     
     // 初回描画
     renderer.render(scene, camera);
+
+    animate();
 
 }
 

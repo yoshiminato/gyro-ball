@@ -1,45 +1,54 @@
-export function showTutorialSkipPage() {
-  return new Promise((resolve) => {
+export function showTutorialSkipPage(event) {
 
     console.log('Tutorial Skip Page: Displaying tutorial skip confirmation dialog');
 
-    // 1. 背景のオーバーレイ
+    // 背景のオーバーレイ
     const overlay = document.createElement('div');
     overlay.classList.add('tutorial-skip-overlay');
 
-    // 2. ポップアップの小画面
+    // ポップアップの小画面
     const modal = document.createElement('div');
     modal.classList.add('tutorial-skip-modal');
 
-    // 3. テキスト
+    // テキスト
     const text = document.createElement('p');
     text.classList.add('tutorial-skip-text');
     text.innerText = 'チュートリアルをスキップしますか？';
 
-    // 4. ボタンのコンテナ
+    // ボタンのコンテナ
     const buttonContainer = document.createElement('div');
     buttonContainer.classList.add('tutorial-skip-btn-container');
 
-    // 5. 「はい」ボタン
+    // ボタン
     const yesButton = document.createElement('button');
     yesButton.classList.add('tutorial-skip-btn', 'tutorial-skip-btn-yes');
     yesButton.innerText = 'はい';
-
-    // 6. 「いいえ」ボタン
     const noButton = document.createElement('button');
     noButton.classList.add('tutorial-skip-btn', 'tutorial-skip-btn-no');
     noButton.innerText = 'いいえ';
 
     // --- クリックイベントの処理 ---
-    yesButton.onclick = () => {
+    yesButton.addEventListener('click', () => {
+      console.log(event.detail.mode)
+      console.log(event.detail.difficulty)
+      console.log('Tutorial Skip Page: User chose to skip the tutorial');
+      const gameStartEvent = new CustomEvent('game-start', {
+        detail: { mode: event.detail.mode, difficulty: event.detail.difficulty, skipTutorial: true }
+      });
+      window.dispatchEvent(gameStartEvent);
       document.body.removeChild(overlay);
-      resolve(true); // スキップする
-    };
+    });
 
-    noButton.onclick = () => {
+    noButton.addEventListener('click', () => {
+      console.log(event.detail.mode)
+      console.log(event.detail.difficulty)
+      console.log('Tutorial Skip Page: User chose not to skip the tutorial');
+      const gameStartEvent = new CustomEvent('game-start', {
+        detail: { mode: event.detail.mode, difficulty: event.detail.difficulty, skipTutorial: false }
+      });
+      window.dispatchEvent(gameStartEvent);
       document.body.removeChild(overlay);
-      resolve(false); // スキップしない
-    };
+    });
 
     // --- 要素の組み立て ---
     buttonContainer.appendChild(yesButton);
@@ -50,5 +59,4 @@ export function showTutorialSkipPage() {
 
     // 画面に追加
     document.body.appendChild(overlay);
-  });
 }

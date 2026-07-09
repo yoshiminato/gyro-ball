@@ -169,4 +169,14 @@ export function showModeSelectPage() {
     easyBtns.forEach(btn => btn.textContent = 'Easy');
     mediumBtns.forEach(btn => btn.textContent = 'Medium');
     hardBtns.forEach(btn => btn.textContent = 'Hard');
+
+    window.addEventListener('game-start', () => {
+        // ゲーム開始時にモード選択画面を非表示にする
+        document.body.removeChild(modeSelectOverlay);
+    });
+
+    window.addEventListener('tutorial-start', () => {
+        // チュートリアル開始時にモード選択画面を非表示にする
+        document.body.removeChild(modeSelectOverlay);
+    });
 }
