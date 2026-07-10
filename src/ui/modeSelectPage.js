@@ -1,4 +1,10 @@
+import { Opponent, Difficulty } from '../constants.js';
+
 export function showModeSelectPage() {
+
+    // 選択された相手・難易度を格納
+    let opponent = Opponent.CUBE; // デフォルトはCUBEモード
+    let difficulty = Difficulty.EASY; // デフォルトはEASY難易度
 
     // 背景画像の設定
     document.body.style.backgroundImage = "url('asset/img/gameView.png')";
@@ -7,7 +13,7 @@ export function showModeSelectPage() {
     document.body.style.backgroundSize = "cover";
     document.body.style.backgroundAttachment = "fixed";
 
-    // wrapperの作成
+    // overlayの作成
     const modeSelectOverlay = document.createElement('div');
     modeSelectOverlay.id = 'mode-select-overlay';
 
@@ -16,29 +22,29 @@ export function showModeSelectPage() {
     titleText.id = 'title-mode-select-page';
     titleText.textContent = 'モード選択';
 
-    // 💡 新設：カードたちを包む横並び用のコンテナ
-    const modeCardsContainer = document.createElement('div');
-    modeCardsContainer.className = 'mode-cards-container';
+    // 敵ごとののコンテナ
+    const opponentCardsContainer = document.createElement('div');
+    opponentCardsContainer.className = 'opponent-cards-container';
 
 
     /***
      * キューブ 
     ***/
 
-    // 全体のラッパー
-    const cubeModeWrapper = document.createElement('div');
-    cubeModeWrapper.className = 'cube-mode-wrapper';
-    cubeModeWrapper.classList.add('mode-wrapper'); // 💡 className = ... だと上書きされちゃうのでclassListに変更！
+    // 全体のコンテナ
+    const cubeContainer = document.createElement('div');
+    cubeContainer.className = 'cube-card-container';
+    cubeContainer.classList.add('opponent-container'); // 💡 className = ... だと上書きされちゃうのでclassListに変更！
 
     // 敵のキューブの画像 or gif 
-    const cubeModeEnemyImg = document.createElement('img');
-    cubeModeEnemyImg.className = 'cube-mode-enemy-img';
-    cubeModeEnemyImg.src = 'asset/img/cube.gif';
-    cubeModeEnemyImg.alt = 'Cube Enemy';
+    const cubeImg = document.createElement('img');
+    cubeImg.className = 'cube-opponent-enemy-img';
+    cubeImg.src = 'asset/img/cube.gif';
+    cubeImg.alt = 'Cube Enemy';
 
     // 難易度選択UIのラッパー
-    const cubeModeDifficultySelectUiWrapper = document.createElement('div');
-    cubeModeDifficultySelectUiWrapper.className = 'difficulty-select-ui-wrapper';
+    const cubeDifficultySelectUiWrapper = document.createElement('div');
+    cubeDifficultySelectUiWrapper.className = 'difficulty-select-ui-wrapper';
     
     // 難易度選択のボタン
     const cubeEasyBtn = document.createElement('button');
@@ -47,33 +53,18 @@ export function showModeSelectPage() {
 
     cubeEasyBtn.className = 'difficulty-btn';
     cubeEasyBtn.classList.add('easy-btn');
+    cubeEasyBtn.dataset.opponent = Opponent.CUBE;
+    cubeEasyBtn.dataset.difficulty = Difficulty.EASY;
     cubeMediumBtn.className = 'difficulty-btn';
     cubeMediumBtn.classList.add('medium-btn');
+    cubeMediumBtn.dataset.opponent = Opponent.CUBE;
+    cubeMediumBtn.dataset.difficulty = Difficulty.NORMAL;
     cubeHardBtn.className = 'difficulty-btn';
     cubeHardBtn.classList.add('hard-btn');
+    cubeHardBtn.dataset.opponent = Opponent.CUBE;
+    cubeHardBtn.dataset.difficulty = Difficulty.HARD;
     
-    // 難易度選択のイベント
-    cubeEasyBtn.addEventListener('click', () => {
-        console.log('Cube: Easy mode selected');
-        const gameStartEvent = new CustomEvent('tutorial-skip-trigger', { 
-            detail: { mode: 'cube', difficulty: 'easy' } 
-        });
-        window.dispatchEvent(gameStartEvent);
-    });
-    cubeMediumBtn.addEventListener('click', () => {
-        console.log('Cube: Medium mode selected');
-        const gameStartEvent = new CustomEvent('tutorial-skip-trigger', { 
-            detail: { mode: 'cube', difficulty: 'medium' } 
-        });
-        window.dispatchEvent(gameStartEvent);
-    });
-    cubeHardBtn.addEventListener('click', () => {
-        console.log('Cube: Hard mode selected');
-        const gameStartEvent = new CustomEvent('tutorial-skip-trigger', { 
-            detail: { mode: 'cube', difficulty: 'hard' } 
-        });
-        window.dispatchEvent(gameStartEvent);
-    });
+    
 
 
     /***
@@ -81,19 +72,19 @@ export function showModeSelectPage() {
     ***/
 
     // 全体のラッパー
-    const snakeModeWrapper = document.createElement('div');
-    snakeModeWrapper.className = 'snake-mode-wrapper';
-    snakeModeWrapper.classList.add('mode-wrapper');
+    const snakeContainer = document.createElement('div');
+    snakeContainer.className = 'snake-card-container';
+    snakeContainer.classList.add('opponent-container');
 
     // 敵のスネークの画像 or gif 
-    const snakeModeEnemyImg = document.createElement('img');
-    snakeModeEnemyImg.className = 'snake-mode-enemy-img';
-    snakeModeEnemyImg.src = 'asset/img/snake.gif';
-    snakeModeEnemyImg.alt = 'Snake Enemy';
+    const snakeEnemyImg = document.createElement('img');
+    snakeEnemyImg.className = 'snake-opponent-enemy-img';
+    snakeEnemyImg.src = 'asset/img/snake.gif';
+    snakeEnemyImg.alt = 'Snake Enemy';
 
     // 難易度選択UIのラッパー
-    const snakeModeDifficultySelectUiWrapper = document.createElement('div');
-    snakeModeDifficultySelectUiWrapper.className = 'difficulty-select-ui-wrapper';
+    const snakeDifficultySelectUiWrapper = document.createElement('div');
+    snakeDifficultySelectUiWrapper.className = 'difficulty-select-ui-wrapper';
     
     // 難易度選択のボタン
     const snakeEasyBtn = document.createElement('button');
@@ -102,33 +93,29 @@ export function showModeSelectPage() {
     
     snakeEasyBtn.className = 'difficulty-btn';
     snakeEasyBtn.classList.add('easy-btn');
+    snakeEasyBtn.dataset.opponent = Opponent.SNAKE;
+    snakeEasyBtn.dataset.difficulty = Difficulty.EASY;
     snakeMediumBtn.className = 'difficulty-btn';
     snakeMediumBtn.classList.add('medium-btn');
+    snakeMediumBtn.dataset.opponent = Opponent.SNAKE;
+    snakeMediumBtn.dataset.difficulty = Difficulty.NORMAL;
     snakeHardBtn.className = 'difficulty-btn';
     snakeHardBtn.classList.add('hard-btn');
+    snakeHardBtn.dataset.opponent = Opponent.SNAKE;
+    snakeHardBtn.dataset.difficulty = Difficulty.HARD;
+
+
+    const difficultyBtns = [cubeEasyBtn, cubeMediumBtn, cubeHardBtn, snakeEasyBtn, snakeMediumBtn, snakeHardBtn];
+
 
     // 難易度選択のイベント
-    snakeEasyBtn.addEventListener('click', () => {
-        console.log('Snake: Easy mode selected');
-        const gameStartEvent = new CustomEvent('tutorial-skip-trigger', { 
-            detail: { mode: 'snake', difficulty: 'easy' } 
-        });
-        window.dispatchEvent(gameStartEvent);
-    });
-    snakeMediumBtn.addEventListener('click', () => {
-        console.log('Snake: Medium mode selected');
-        const gameStartEvent = new CustomEvent('tutorial-skip-trigger', { 
-            detail: { mode: 'snake', difficulty: 'medium' } 
-        });
-        window.dispatchEvent(gameStartEvent);
-    });
-    snakeHardBtn.addEventListener('click', () => {
-        console.log('Snake: Hard mode selected');
-        const gameStartEvent = new CustomEvent('tutorial-skip-trigger', { 
-            detail: { mode: 'snake', difficulty: 'hard' } 
-        });
-        window.dispatchEvent(gameStartEvent);
-    });
+    cubeEasyBtn.addEventListener('click',    () => updateSelectedElm(cubeEasyBtn));
+    cubeMediumBtn.addEventListener('click',  () => updateSelectedElm(cubeMediumBtn));
+    cubeHardBtn.addEventListener('click',    () => updateSelectedElm(cubeHardBtn));
+    snakeEasyBtn.addEventListener('click',   () => updateSelectedElm(snakeEasyBtn));
+    snakeMediumBtn.addEventListener('click', () => updateSelectedElm(snakeMediumBtn));
+    snakeHardBtn.addEventListener('click',   () => updateSelectedElm(snakeHardBtn));
+
 
 
     // ゲーム開始ボタン
@@ -136,27 +123,35 @@ export function showModeSelectPage() {
     gameStartBtn.id = 'game-start-btn';
     gameStartBtn.textContent = 'ゲーム開始';
 
+    gameStartBtn.addEventListener('click', () => {
+        console.log(`Selected opponent: ${opponent}, Selected Difficulty: ${difficulty}`);
+        const gameStartEvent = new CustomEvent('tutorial-skip-trigger', {
+            detail: { opponent: opponent, difficulty: difficulty }
+        });
+        window.dispatchEvent(gameStartEvent);
+    });
+
 
     // --- 要素の組み立て ---
-    cubeModeDifficultySelectUiWrapper.appendChild(cubeEasyBtn);
-    cubeModeDifficultySelectUiWrapper.appendChild(cubeMediumBtn);
-    cubeModeDifficultySelectUiWrapper.appendChild(cubeHardBtn);
-    cubeModeWrapper.appendChild(cubeModeEnemyImg);
-    cubeModeWrapper.appendChild(cubeModeDifficultySelectUiWrapper);
+    cubeDifficultySelectUiWrapper.appendChild(cubeEasyBtn);
+    cubeDifficultySelectUiWrapper.appendChild(cubeMediumBtn);
+    cubeDifficultySelectUiWrapper.appendChild(cubeHardBtn);
+    cubeContainer.appendChild(cubeImg);
+    cubeContainer.appendChild(cubeDifficultySelectUiWrapper);
 
-    snakeModeDifficultySelectUiWrapper.appendChild(snakeEasyBtn);
-    snakeModeDifficultySelectUiWrapper.appendChild(snakeMediumBtn);
-    snakeModeDifficultySelectUiWrapper.appendChild(snakeHardBtn);
-    snakeModeWrapper.appendChild(snakeModeEnemyImg);
-    snakeModeWrapper.appendChild(snakeModeDifficultySelectUiWrapper);
+    snakeDifficultySelectUiWrapper.appendChild(snakeEasyBtn);
+    snakeDifficultySelectUiWrapper.appendChild(snakeMediumBtn);
+    snakeDifficultySelectUiWrapper.appendChild(snakeHardBtn);
+    snakeContainer.appendChild(snakeEnemyImg);
+    snakeContainer.appendChild(snakeDifficultySelectUiWrapper);
 
     // 💡 敵の選択ラッパーは、新設したコンテナに入れる
-    modeCardsContainer.appendChild(cubeModeWrapper);
-    modeCardsContainer.appendChild(snakeModeWrapper);
+    opponentCardsContainer.appendChild(cubeContainer);
+    opponentCardsContainer.appendChild(snakeContainer);
 
     // 💡 全体のオーバーレイには「タイトル」「カードコンテナ」「開始ボタン」を縦に並べる
     modeSelectOverlay.appendChild(titleText);
-    modeSelectOverlay.appendChild(modeCardsContainer); 
+    modeSelectOverlay.appendChild(opponentCardsContainer); 
     modeSelectOverlay.appendChild(gameStartBtn);
     
     document.body.appendChild(modeSelectOverlay);
@@ -172,11 +167,29 @@ export function showModeSelectPage() {
 
     window.addEventListener('game-start', () => {
         // ゲーム開始時にモード選択画面を非表示にする
-        document.body.removeChild(modeSelectOverlay);
+        if (modeSelectOverlay.parentNode) {
+            modeSelectOverlay.parentNode.removeChild(modeSelectOverlay);
+        }
     });
 
-    window.addEventListener('tutorial-start', () => {
-        // チュートリアル開始時にモード選択画面を非表示にする
-        document.body.removeChild(modeSelectOverlay);
-    });
+    updateSelectedElm(cubeEasyBtn);
+
+    function updateSelectedElm(selectedElm) {
+        difficultyBtns.forEach(elm => elm.classList.remove('selected'));
+        selectedElm.classList.add('selected');
+        opponent = selectedElm.dataset.opponent;
+        difficulty = selectedElm.dataset.difficulty;
+
+        cubeContainer.classList.remove('selected-opponent');
+        snakeContainer.classList.remove('selected-opponent');
+        if (opponent == Opponent.CUBE) cubeContainer.classList.add('selected-opponent');
+        else snakeContainer.classList.add('selected-opponent');   
+    }
+
+    function removeModeSelectOverlay() {
+        if (modeSelectOverlay.parentNode) {
+            modeSelectOverlay.remove();
+        }
+    }
 }
+

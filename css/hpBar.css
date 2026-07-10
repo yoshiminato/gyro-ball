@@ -1,0 +1,34 @@
+#hp-bar-container {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    z-index: 1000;
+}
+
+#hp-label {
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+/* バーの背景 */
+#hp-frame {
+    width: 100%;
+    height: 22px;
+    background: #555;
+    border: 2px solid white;
+    border-radius: 11px;
+    overflow: hidden;
+}
+
+/* 現在HP */
+#hp-bar {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to right, #32cd32, #00ff00);
+    transition: width 0.25s ease;
+}

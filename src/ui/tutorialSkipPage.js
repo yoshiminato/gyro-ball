@@ -29,9 +29,6 @@ export function showTutorialSkipPage(event) {
 
     // --- クリックイベントの処理 ---
     yesButton.addEventListener('click', () => {
-      console.log(event.detail.mode)
-      console.log(event.detail.difficulty)
-      console.log('Tutorial Skip Page: User chose to skip the tutorial');
       const gameStartEvent = new CustomEvent('game-start', {
         detail: { mode: event.detail.mode, difficulty: event.detail.difficulty, skipTutorial: true }
       });
@@ -40,9 +37,6 @@ export function showTutorialSkipPage(event) {
     });
 
     noButton.addEventListener('click', () => {
-      console.log(event.detail.mode)
-      console.log(event.detail.difficulty)
-      console.log('Tutorial Skip Page: User chose not to skip the tutorial');
       const gameStartEvent = new CustomEvent('game-start', {
         detail: { mode: event.detail.mode, difficulty: event.detail.difficulty, skipTutorial: false }
       });

@@ -22,15 +22,8 @@ export class Ball extends DynamicObject{
         this.body = createBallBody(Ball.BALL_R);
         this.mesh = createBallMesh(Ball.BALL_R);
 
-        // this.body.addEventListener('collide', (e) => {
+        this.body.name = 'ball';
 
-        //     console.log(e.contact.ni.y);
-        //     if(e.contact.ni.y >0.5) 
-        //         this.canJump = true;
-        //     else
-        //         this.canJump = false;
-
-        // });
     }
 
 

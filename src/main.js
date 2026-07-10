@@ -2,16 +2,19 @@
 // main.js - コントローラー・メインループ
 // ============================================================
 
-// import { showStartPage } from './ui/startPage.js';
+import { Opponent, Difficulty } from './constants.js';
+
+import { destroyGame, startGame } from './gameController.js';
+
 import { registerRouterEvents } from './router.js';
 
 import { 
     initRenderer, createCubeMesh, renderer, scene, camera,
-    ballLight, neonLight1, neonLight2, obstacles 
+    ballLight, neonLight1, neonLight2, obstacles , destroyRenderer
 } from './core/renderer.js';
 
 import { 
-    initPhysics, createBallBody, createCubeBody, world, setupCollisionHandler
+    initPhysics, createBallBody, createCubeBody, world, setupCollisionHandler, destroyPhysics
 } from './core/physics.js';
 
 import { requestGyro, resetCalibration } from './input/gyro.js';
@@ -28,7 +31,7 @@ import { Snake } from './object/snake.js';
 
 let ball = null;
 let cube = null;
-let snale = null;
+let snake = null;
 
 const CAM_DIST = 14;
 const CAM_HEIGHT = 8;
@@ -38,62 +41,55 @@ let started = false;
 let totalDist = 0;
 const camTarget = new THREE.Vector3();
 
-// 障害物データ定義
-const obstacleDefs = [
-    // [-20, -10, 12, 2, 1], [-10, -10, 12, 2, 1], [0, -10, 12, 2, 1],
-    // [20, 15, 1, 3, 12], [-20, 15, 1, 3, 12],
-    // [10, 5, 3, 4, 3], [-10, 5, 3, 4, 3],
-    // [0, 20, 8, 1.5, 1], [0, -20, 8, 1.5, 1],
-    // [15, -15, 2, 2, 2], [-15, 15, 2, 2, 2],
-    // [25, 0, 3, 3, 3], [-25, 5, 2, 2.5, 2],
-    // [5, 30, 1.5, 4, 1.5], [-5, -30, 1.5, 4, 1.5],
-    // [30, -20, 2, 1.5, 2], [-30, 20, 2, 1.5, 2],
-    // [10, -25, 4, 1, 4], [-10, 25, 4, 1, 4],
-    // [35, 10, 1.5, 5, 1.5], [-35, -10, 1.5, 5, 1.5],
-    // [20, 30, 2, 2, 2], [-20, -30, 2, 2, 2],
-];
+// // 障害物データ定義
+// const obstacleDefs = [
+//     // [-20, -10, 12, 2, 1], [-10, -10, 12, 2, 1], [0, -10, 12, 2, 1],
+//     // [20, 15, 1, 3, 12], [-20, 15, 1, 3, 12],
+//     // [10, 5, 3, 4, 3], [-10, 5, 3, 4, 3],
+//     // [0, 20, 8, 1.5, 1], [0, -20, 8, 1.5, 1],
+//     // [15, -15, 2, 2, 2], [-15, 15, 2, 2, 2],
+//     // [25, 0, 3, 3, 3], [-25, 5, 2, 2.5, 2],
+//     // [5, 30, 1.5, 4, 1.5], [-5, -30, 1.5, 4, 1.5],
+//     // [30, -20, 2, 1.5, 2], [-30, 20, 2, 1.5, 2],
+//     // [10, -25, 4, 1, 4], [-10, 25, 4, 1, 4],
+//     // [35, 10, 1.5, 5, 1.5], [-35, -10, 1.5, 5, 1.5],
+//     // [20, 30, 2, 2, 2], [-20, -30, 2, 2, 2],
+// ];
 
-setupEvents();
-
-// window.onload = showStartPage;
+registerRouterEvents();
+animate();
 
 window.addEventListener('game-start', init);
 
 function init(e) {
 
-    initRenderer();
-    
-    // 物理世界の初期化（レンダラー側の配列への参照を渡す）
-    initPhysics(obstacles);
-    ball = new Ball(); 
-    // cube = new Cube(6, 0, 3, 3, 3);
-    // snale = new Snake(7, 7);
-    setupCollisionHandler(obstacles);
+    try{
+        ({ started, ball, cube, snake } = destroyGame());
+        console.log(started);
+        ({ started, ball, cube, snake} = startGame(e));
+        console.log(started);
+    }
+    catch(err){
+        console.warn('ゲーム初期化失敗')
+        console.log(err)
+    }
 
-    // 障害物の生成（MeshとBodyをIDで紐づけ）
-    const boxMat = world.materials.find(m => m.name === 'box');
-    obstacleDefs.forEach((def, i) => {
-        const id = i + 1000; // 固有ID
-        createCubeMesh(def[0], def[1], def[2], def[3], def[4], i, id);
-        createCubeBody(def[0], def[1], def[2], def[3], def[4], id, boxMat);
-    });
+    // snake = new Snake(7, 7);
+    setupCollisionHandler(obstacles);
+    setupEvents();
+
 
     resetCalibration();
     requestGyro();
     lastTime = performance.now();
     started = true;
-
-
     
     // 初回描画
     renderer.render(scene, camera);
 
-    animate();
-
 }
 
 function setupEvents() {
-    registerRouterEvents();
     registerKeyEvent(ball);
     registerTouchEvent(ball);
 }
@@ -128,14 +124,14 @@ function animate() {
 
     ball.clampVelocity();
 
-    // cube.chase(ball.body.position.x, ball.body.position.z);
+    cube.chase(ball.body.position.x, ball.body.position.z);
     // snale.chase(ball.body.position.x, ball.body.position.z);
 
     // 物理シミュレーションを1ステップ進める
     world.step(1 / 60, dt, 3);
 
     ball.updateVisuals();
-    // cube.updateVisuals();
+    cube.updateVisuals();
     // snale.updateVisuals();
 
     // 距離計算

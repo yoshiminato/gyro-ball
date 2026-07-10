@@ -13,7 +13,7 @@
 }
 
 /* 💡 新設：敵の選択カードを横並びにするコンテナ */
-.mode-cards-container {
+.opponent-cards-container {
     display: flex;
     flex-direction: row; /* カードは横並び */
     flex-wrap: wrap;     /* 画面が狭い時は自動で縦並び */
@@ -32,7 +32,7 @@
 }
 
 /* モードごとの枠 */
-.mode-wrapper {
+.opponent-container {
     background: rgba(20, 25, 50, 0.8);
     border: 1px solid #457;
     border-radius: 12px;
@@ -105,4 +105,22 @@
 #game-start-btn:active {
     transform: scale(0.95);
     opacity: 0.9;
+}
+
+/* 選択された敵の枠を強調表示するスタイル */
+.opponent-container.selected-opponent {
+    border: 3px solid white;
+    box-shadow:
+        0 0 12px white,
+        0 0 24px #7df;
+    transform: scale(1.03);
+}
+
+/* 選択された難易度ボタンのスタイル */
+.difficulty-btn.selected {
+    border: 2px solid white;
+    box-shadow:
+        0 0 8px white,
+        0 0 16px #7df;
+    transform: scale(1.05);
 }

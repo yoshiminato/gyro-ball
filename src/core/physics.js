@@ -8,7 +8,7 @@ let hitCount = 0;
 
 const FIELD_SIZE = 50//100;
 
-export function initPhysics(obstaclesFromRenderer) {
+export function initPhysics() {
     world = new CANNON.World();
     world.gravity.set(0, -25, 0);
     world.broadphase = new CANNON.NaiveBroadphase();
@@ -152,4 +152,16 @@ export function setupCollisionHandler(rendererObstacles, boxMat) {
             }
         }
     });
+}
+
+export function destroyPhysics() {
+    // 物理世界の全てのボディを削除
+    while (world.bodies.length > 0) {
+        world.removeBody(world.bodies[0]);
+    }
+    while (world.constraints.length) {
+        world.removeConstraint(world.constraints[0]);
+    }
+
+    obstacleBodies.length = 0;
 }

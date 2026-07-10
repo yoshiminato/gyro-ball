@@ -9,7 +9,7 @@ export const obstacles = []; // 描画用メッシュとマテリアルの保持
 const FIELD_SIZE = 100;
 const TILE_COUNT = 20;
 const tileSize = FIELD_SIZE / TILE_COUNT;
-const cubeColors = [0x4488ff, 0x44ffaa, 0xff44aa, 0xffcc44, 0xaa44ff, 0x44ccff];
+const cubeColor = 0x4488ff;
 
 export function initRenderer() {
     // レンダラー初期化
@@ -94,28 +94,70 @@ export function createBallMesh(radius) {
     return ballMesh;
 }
 
-export function createCubeMesh(x, z, w, h, d, colorIdx, bodyId) {
-    const col = cubeColors[colorIdx % cubeColors.length];
-    const geo = new THREE.BoxGeometry(w, h, d);
-    const mat = new THREE.MeshPhongMaterial({
-        color: col,
-        emissive: new THREE.Color(col).multiplyScalar(0.15),
-        shininess: 60
-    });
-    const mesh = new THREE.Mesh(geo, mat);
+
+export function createCubeMesh(
+    x,
+    z,
+    w,
+    h,
+    d,
+    colorIdx,
+    headFace = 4,
+    weakFace = 5
+) {
+
+    const col = cubeColor;
+    const geometry = new THREE.BoxGeometry(w, h, d);
+
+    const materials = [];
+
+    for (let i = 0; i < 6; i++) {
+
+        let faceColor = col;
+
+        // 前面（進行方向）
+        if (i === headFace) {
+            faceColor = 0xff0000;
+        }
+
+        // 弱点（前面より優先）
+        if (i === weakFace) {
+            faceColor = 0xfff4a3;   // 薄い黄色
+        }
+
+        materials.push(
+            new THREE.MeshPhongMaterial({
+                color: faceColor,
+                emissive: new THREE.Color(faceColor).multiplyScalar(0.2),
+                shininess: 80
+            })
+        );
+    }
+
+    const mesh = new THREE.Mesh(geometry, materials);
+
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.position.set(x, h / 2, z);
+
     scene.add(mesh);
 
+    // エッジは白にする
     const edges = new THREE.LineSegments(
-        new THREE.EdgesGeometry(geo),
-        new THREE.LineBasicMaterial({ color: new THREE.Color(col).addScalar(0.3) })
+        new THREE.EdgesGeometry(geometry),
+        new THREE.LineBasicMaterial({
+            color: 0xffffff
+        })
     );
+
     mesh.add(edges);
 
-    // 物理ボディと紐づけるためにオブジェクトとして配列に保存
-    obstacles.push({ mesh, bodyId, originalColor: col, mat });
+    obstacles.push({
+        mesh,
+        originalColor: col,
+        materials
+    });
+
     return mesh;
 }
 
@@ -237,4 +279,40 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+export function destroyRenderer() {
+
+    scene.traverse(obj=>{
+
+        if(obj.geometry){
+            obj.geometry.dispose();
+        }
+
+        if(obj.material){
+
+            if(Array.isArray(obj.material)){
+                obj.material.forEach(m=>m.dispose());
+            }else{
+                obj.material.dispose();
+            }
+        }
+
+    });
+
+    while(scene.children.length > 0){
+        scene.remove(scene.children[0]);
+    }
+
+    // レンダラーの破棄
+    if (renderer) {
+        renderer.dispose();
+        renderer.forceContextLoss();
+        renderer.domElement.remove();
+        renderer = null;
+    }
+
+    obstacles.length = 0;
+
+
 }
