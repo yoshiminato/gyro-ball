@@ -27,3 +27,13 @@ export async function setupGameScreen(e){
         }
     }
 }
+
+
+// 列挙型の値からキーを取得する
+export function getEnumKey(enumObject, value) {
+    const numberValue = Number(value);
+
+    return Object.keys(enumObject).find(
+        key => enumObject[key] === numberValue
+    ) ?? 'UNKNOWN';
+}

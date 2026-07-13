@@ -99,11 +99,6 @@ export class Cube extends DynamicObject {
             });
             console.log('Game Over! Cube hit on the front face.');
             window.dispatchEvent(gameOverEvent);
-            try{
-                destroyGame();
-            } catch (err) {
-                console.error('Error occurred while destroying game:', err);
-            }
             return null;
         }
 
@@ -141,6 +136,15 @@ export class Cube extends DynamicObject {
         }
     }
 
+    update(target) {
+        // 物理演算
+        const targetPos = this.getTargetPosition(target);
+        this.chase(targetPos.x, targetPos.z);
+        // ビジュアル更新
+        this.updateVisuals();
+    }
+     
+
     // キャラクターの追跡
     chase(characterX, characterZ) {
 
@@ -167,19 +171,7 @@ export class Cube extends DynamicObject {
         this.fz = Math.cos(this.yaw) * Cube.FORCE_SCALE;
 
         this.applyForce();
-        // this.keepAtitude();
     }
-
-    keepAtitude() {
-        const euler = new CANNON.Vec3();
-        this.body.quaternion.toEuler(euler);
-        this.body.quaternion.setFromEuler(
-            0,          // Roll
-            euler.y,    // Yawだけ保持
-            0           // Pitch
-        );
-    }
-
 
     updateWeakFace(newWeakFace) {
 

@@ -27,11 +27,12 @@ export class Ball extends DynamicObject{
     }
 
 
-
+    
     resetHeading(){
         this.heading = 0;
     }
 
+    // ボールの位置を初期位置にリセット
     resetPosition(){
         this.body.position.set(
             this.initialPosition.x, 
@@ -43,41 +44,14 @@ export class Ball extends DynamicObject{
         this.body.quaternion.set(0, 0, 0, 1);
     }
 
-    judgeCanJump(world){
-
-        const normal = new CANNON.Vec3();
-
-        for(const c of world.contacts){
-            if (c.bi !== this.body && c.bj !== this.body)
-            continue;
-
-            const opponent = (c.bi === this.body) ? c.bj : c.bi;
-
-            if (c.bi === this.body)
-                c.ni.negate(normal);
-            else
-                normal.copy(c.ni);
-
-            if (normal.y < 0.5)
-                continue;
-
-            this.canJump = true;
-            return;
-        }
-        this.canJump = false;
-    }
-
-
-
     // ジャンプ
     triggerJump() {
         if(!this.canJump) return;
-        
         this.body.applyImpulse(new CANNON.Vec3(0, Ball.JUMP_FORCE, 0), this.body.position);
         this.canJump = false;
-        
     }
 
+    // 入力に応じて力を計算
     calculateForce(dt){
         if (gyroEnabled)           
             calculateForceFromGyro(this, dt);
@@ -85,6 +59,7 @@ export class Ball extends DynamicObject{
             calculateForceFromKeys(this, dt);      
     }
 
+    // 速度制限
     clampVelocity() {
         const v = this.body.velocity;
         if (v.length() > Ball.MAX_VEL) {
@@ -92,23 +67,12 @@ export class Ball extends DynamicObject{
         }
     }
 
-    checkGrounded(world) {
-        const rayStart  = new CANNON.Vec3(
-            this.body.position.x,
-            this.body.position.y,
-            this.body.position.z
-        );
-        const rayTarget = new CANNON.Vec3(rayStart.x, rayStart.y - (Ball.BALL_R + 0.1), rayStart.z);
-
-        let isGrounded = false;
-
-        const raycastResult = new CANNON.RaycastResult();
-        world.raycastClosest(rayStart, rayTarget, {}, raycastResult);
-        
-        if (raycastResult.hasHit) {
-            isGrounded = true;
-        }
-
-        return isGrounded;
+    update(dt){
+        // 物理演算
+        this.calculateForce(dt);
+        this.applyForce();
+        this.clampVelocity();
+        // ビジュアル更新
+        this.updateVisuals();
     }
 }

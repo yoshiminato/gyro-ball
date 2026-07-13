@@ -1,10 +1,7 @@
 import { Opponent, Difficulty } from '../constants.js';
+import { opponent, difficulty, updateOpponentAndDifficulty } from '../gameController.js';
 
 export function showModeSelectPage() {
-
-    // 選択された相手・難易度を格納
-    let opponent = Opponent.CUBE; // デフォルトはCUBEモード
-    let difficulty = Difficulty.EASY; // デフォルトはEASY難易度
 
     // 背景画像の設定
     document.body.style.backgroundImage = "url('asset/img/gameView.png')";
@@ -125,9 +122,7 @@ export function showModeSelectPage() {
 
     gameStartBtn.addEventListener('click', () => {
         console.log(`Selected opponent: ${opponent}, Selected Difficulty: ${difficulty}`);
-        const gameStartEvent = new CustomEvent('tutorial-skip-trigger', {
-            detail: { opponent: opponent, difficulty: difficulty }
-        });
+        const gameStartEvent = new CustomEvent('tutorial-skip-trigger');
         window.dispatchEvent(gameStartEvent);
     });
 
@@ -177,8 +172,7 @@ export function showModeSelectPage() {
     function updateSelectedElm(selectedElm) {
         difficultyBtns.forEach(elm => elm.classList.remove('selected'));
         selectedElm.classList.add('selected');
-        opponent = selectedElm.dataset.opponent;
-        difficulty = selectedElm.dataset.difficulty;
+        updateOpponentAndDifficulty(selectedElm.dataset.opponent, selectedElm.dataset.difficulty);
 
         cubeContainer.classList.remove('selected-opponent');
         snakeContainer.classList.remove('selected-opponent');

@@ -22,4 +22,12 @@ export class DynamicObject {
         }  
     }
 
+    getTargetPosition(target) {
+        const p = target.body.position;
+        return {
+            x: p.x,
+            z: p.z
+        };
+    }
+
 }

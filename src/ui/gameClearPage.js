@@ -1,4 +1,6 @@
 import { Opponent, Difficulty } from '../constants.js';
+import { opponent, difficulty } from '../gameController.js';
+import { getEnumKey } from '../util.js';
 
 export function showGameClearPage(event) {
 
@@ -21,38 +23,13 @@ export function showGameClearPage(event) {
     const opponentText = document.createElement('p');
     opponentText.classList.add('game-clear-text');
 
-    let opponentName = '---';
-    if (event.detail && event.detail.opponent) {
-        switch (event.detail.opponent) {
-            case Opponent.CUBE:
-                opponentName = 'Cube';
-                break;
-            case Opponent.SNAKE:
-                opponentName = 'Snake';
-                break;
-        }
-    }
-    opponentText.textContent = `撃破した敵：${opponentName}`;
+    opponentText.textContent = `撃破した敵：${getEnumKey(Opponent, opponent)}`;
 
     // 難易度（データがない場合のフォールバック付き）
     const difficultyText = document.createElement('p');
     difficultyText.classList.add('game-clear-text');
 
-    let difficultyName = '---';
-    if (event.detail && event.detail.difficulty) {
-        switch (Number(event.detail.difficulty)) {
-            case Difficulty.EASY:
-                difficultyName = 'Easy';
-                break;
-            case Difficulty.NORMAL:
-                difficultyName = 'Normal';
-                break;
-            case Difficulty.HARD:
-                difficultyName = 'Hard';
-                break;
-        }
-    }
-    difficultyText.textContent = `難易度：${difficultyName}`;
+    difficultyText.textContent = `難易度：${getEnumKey(Difficulty, difficulty)}`;
 
     // ボタンコンテナ
     const buttonContainer = document.createElement('div');
@@ -68,16 +45,13 @@ export function showGameClearPage(event) {
 
     // 前回の解説を踏まえ、より安全な .remove() でモーダルを削除しています
     retryButton.addEventListener('click', () => {
-        window.dispatchEvent(new CustomEvent('game-start', {
-            detail: {
-                opponent: event.detail?.opponent ?? Opponent.CUBE,
-                difficulty: event.detail?.difficulty ?? Difficulty.NORMAL
-            }
-        }));
+        console.log('Game Clear Page: Retrying the game');
+        window.dispatchEvent(new CustomEvent('game-start'));
         overlay.remove();
     });
 
     modeSelectButton.addEventListener('click', () => {
+        console.log('Game Clear Page: Returning to mode select page');
         window.dispatchEvent(new CustomEvent('back-to-mode-select'));
         overlay.remove();
     });

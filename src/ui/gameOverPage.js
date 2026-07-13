@@ -1,4 +1,6 @@
 import { Opponent, Difficulty } from '../constants.js';
+import { opponent, difficulty } from '../gameController.js';
+import { getEnumKey } from '../util.js';
 
 export function showGameOverPage(event) {
 
@@ -21,36 +23,13 @@ export function showGameOverPage(event) {
     const opponentText = document.createElement('p');
     opponentText.classList.add('game-over-text');
 
-    let opponentName = null;
-    switch (event.detail.opponent) {
-        case Opponent.CUBE:
-            opponentName = 'Cube';
-            break;
-        case Opponent.SNAKE:
-            opponentName = 'Snake';
-            break;
-    }
-
-    opponentText.textContent = `敵：${opponentName}`;
+    opponentText.textContent = `敵：${getEnumKey(Opponent, opponent)}`;
 
     // 難易度
     const difficultyText = document.createElement('p');
     difficultyText.classList.add('game-over-text');
 
-    let difficultyName = 'Unknown';
-    switch (Number(event.detail.difficulty)) {
-        case Difficulty.EASY:
-            difficultyName = 'Easy';
-            break;
-        case Difficulty.NORMAL:
-            difficultyName = 'Normal';
-            break;
-        case Difficulty.HARD:
-            difficultyName = 'Hard';
-            break;
-    }
-
-    difficultyText.textContent = `難易度：${difficultyName}`;
+    difficultyText.textContent = `難易度：${getEnumKey(Difficulty, difficulty)}`;
 
     // ボタン
     const buttonContainer = document.createElement('div');
@@ -65,18 +44,13 @@ export function showGameOverPage(event) {
     modeSelectButton.textContent = 'モード選択に戻る';
 
     retryButton.addEventListener('click', () => {
-        window.dispatchEvent(new CustomEvent('game-start', {
-            detail: {
-                opponent: event.detail.opponent,
-                difficulty: event.detail.difficulty
-            }
-        }));
-        document.body.removeChild(overlay);
+        window.dispatchEvent(new CustomEvent('game-start'));
+        overlay.remove()
     });
 
     modeSelectButton.addEventListener('click', () => {
         window.dispatchEvent(new CustomEvent('back-to-mode-select'));
-        document.body.removeChild(overlay);
+        overlay.remove();
     });
 
     buttonContainer.appendChild(retryButton);

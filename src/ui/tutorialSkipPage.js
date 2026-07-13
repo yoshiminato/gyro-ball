@@ -1,3 +1,7 @@
+import { Opponent, Difficulty } from '../constants.js';
+import { opponent, difficulty } from '../gameController.js';
+import { getEnumKey } from '../util.js';
+
 export function showTutorialSkipPage(event) {
 
     console.log('Tutorial Skip Page: Displaying tutorial skip confirmation dialog');
@@ -29,17 +33,13 @@ export function showTutorialSkipPage(event) {
 
     // --- クリックイベントの処理 ---
     yesButton.addEventListener('click', () => {
-      const gameStartEvent = new CustomEvent('game-start', {
-        detail: { mode: event.detail.mode, difficulty: event.detail.difficulty, skipTutorial: true }
-      });
+      const gameStartEvent = new CustomEvent('game-start');
       window.dispatchEvent(gameStartEvent);
       document.body.removeChild(overlay);
     });
 
     noButton.addEventListener('click', () => {
-      const gameStartEvent = new CustomEvent('game-start', {
-        detail: { mode: event.detail.mode, difficulty: event.detail.difficulty, skipTutorial: false }
-      });
+      const gameStartEvent = new CustomEvent('game-start');
       window.dispatchEvent(gameStartEvent);
       document.body.removeChild(overlay);
     });

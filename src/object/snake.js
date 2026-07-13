@@ -10,9 +10,12 @@ export class Snake extends DynamicObject {
     static JUMP_INTERVAL = 5000;
     static JUMP_FORCE = 60;
 
-    constructor(x, z) {
+    static initialPosition = { x: 0, z: -6 };
+
+    constructor(difficulty) {
 
         super();
+        const { x, z } = Snake.initialPosition;
 
         this.radius = 2;
         this.segmentCount = 7;
@@ -37,6 +40,14 @@ export class Snake extends DynamicObject {
         );
 
         this.nextJumpTime = performance.now() + Snake.JUMP_INTERVAL;
+    }
+
+    update(ball){
+        // 物理演算
+        const targetPos = this.getTargetPosition(ball);
+        this.chase(targetPos.x, targetPos.z);
+        // ビジュアル更新
+        this.updateVisuals();
     }
 
     chase(targetX, targetZ) {
