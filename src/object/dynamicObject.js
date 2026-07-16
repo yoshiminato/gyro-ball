@@ -4,8 +4,6 @@ export class DynamicObject {
         this.body = null;
         this.mesh = null;
         this.heading = 0;
-        this.fx = 0;
-        this.fz = 0;
     }
 
     updateVisuals(newHeading) {
@@ -13,13 +11,16 @@ export class DynamicObject {
         this.mesh.quaternion.copy(this.body.quaternion);
     }
 
-    applyForce() {
-        const fx = this.fx;
-        const fz = this.fz;
-        if (fx !== 0 || fz !== 0) {
-            const bp = this.body.position;
-            this.body.applyForce(new CANNON.Vec3(fx, 0, fz), new CANNON.Vec3(bp.x, bp.y, bp.z));
-        }  
+    applyForce(force, object=this, point=null) {
+        if(force.x == 0 && force.z == 0) return;
+        if(!point) point = object.body.position;
+        object.body.applyForce(force, point);
+    }
+
+    applyImpulse(force, object=this, point=null) {
+        if(force.x == 0 && force.z == 0) return;
+        if(!point) point = object.body.position;
+        object.body.applyImpulse(force, point);
     }
 
     getTargetPosition(target) {

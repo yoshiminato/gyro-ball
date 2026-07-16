@@ -13,16 +13,18 @@ export function registerKeyEvent(ball) {
     document.addEventListener('keyup', e => { keys[e.code] = false; });
 }
 
-function calculateHeadingFromKeys(ball, dt) {
-    if (keys['ArrowLeft'] || keys['KeyA']) ball.heading -= Ball.HEADING_SCALE * dt;
-    if (keys['ArrowRight'] || keys['KeyD']) ball.heading += Ball.HEADING_SCALE * dt;
+function calculateHeadingDeltaFromKeys(dt) {
+    if (keys['ArrowLeft'] || keys['KeyA']) return -Ball.HEADING_SCALE * dt;
+    if (keys['ArrowRight'] || keys['KeyD']) return Ball.HEADING_SCALE * dt;
+    return 0;
 }
 
 export function calculateForceFromKeys(ball, dt) {
     let forwardForce = 0;
-    calculateHeadingFromKeys(ball, dt);
-    if (keys['ArrowUp'] || keys['KeyW']) forwardForce += Ball.FORCE_SCALE;
-    if (keys['ArrowDown'] || keys['KeyS']) forwardForce -= Ball.FORCE_SCALE;
-    ball.fx = Math.sin(ball.heading) * forwardForce * FORCE_COEF;
-    ball.fz = -Math.cos(ball.heading) * forwardForce * FORCE_COEF;
+    ball.heading += calculateHeadingDeltaFromKeys(dt);
+    if (keys['ArrowUp'] || keys['KeyW'])   forwardForce =  Ball.FORCE_SCALE;
+    if (keys['ArrowDown'] || keys['KeyS']) forwardForce = -Ball.FORCE_SCALE;
+    const fx = Math.sin(ball.heading) * forwardForce * FORCE_COEF;
+    const fz = -Math.cos(ball.heading) * forwardForce * FORCE_COEF;
+    return new CANNON.Vec3(fx, 0, fz);
 }

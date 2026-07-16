@@ -16,6 +16,7 @@ export class Snake extends DynamicObject {
     static JUMP_FORCE = 60;
     static WEAK_SEGMENT_DAMAGE_COEF = 3;
 
+
     static initialPosition = { x: 0, z: -6 };
 
     constructor(difficulty) {
@@ -50,6 +51,8 @@ export class Snake extends DynamicObject {
         this.rayMidPoint = new THREE.Vector3();
         this.rayYAxis = new THREE.Vector3(0, 1, 0);
 
+        this.difficulty = Number(difficulty);
+
         this.meshes = createSnakeMesh(
             x,
             z,
@@ -58,7 +61,7 @@ export class Snake extends DynamicObject {
             this.weakSegmentIndex
         );
 
-        switch (Number(difficulty)) {
+        switch (this.difficulty) {
             case Difficulty.EASY:
                 this.maxHp = 30;
                 break;
@@ -122,45 +125,43 @@ export class Snake extends DynamicObject {
         window.dispatchEvent(gameClearEvent);
     }
 
-    update(ball){
+    update(target){
         // 物理演算
-        const targetPos = this.getTargetPosition(ball);
         this.chase(targetPos.x, targetPos.z);
         // ビジュアル更新
         this.updateVisuals();
 
         // 頭からボールへ光線を表示
-        this.emitLightRay(ball.mesh.position);
+        this.emitLightRay(target.mesh.position);
     }
 
-    chase(targetX, targetZ) {
+    updateBehavior(target) {
+
+    }
+
+    chase(target) {
+
+        const targetPos = this.getTargetPosition(target);
 
         const head = this.bodies[0];
 
         const p = head.position;
 
-        const dx = targetX - p.x;
-        const dz = targetZ - p.z;
+        const dx = targetPos.x - p.x;
+        const dz = targetPos.z - p.z;
 
         const distance = Math.hypot(dx, dz);
 
         const fx = dx / distance * Snake.FORCE_SCALE;
         const fz = dz / distance * Snake.FORCE_SCALE;
 
-        head.applyForce(
-            new CANNON.Vec3(
-                fx,
-                0,
-                fz
-            ),
-            p
-        );
+        const forceVector = new CANNON.Vec3(fx, 0, fz);
+
+        this.applyForce(forceVector, head);
 
         if (performance.now() > this.nextJumpTime) {
-            head.applyImpulse(
-                new CANNON.Vec3(fx, Snake.JUMP_FORCE, fz),
-                p
-            );
+            const jumpForceVector = new CANNON.Vec3(fx, Snake.JUMP_FORCE, fz);
+            this.applyImpulse(jumpForceVector, head);
             this.nextJumpTime += Snake.JUMP_INTERVAL;
         }
 

@@ -47,16 +47,19 @@ export class Ball extends DynamicObject{
     // ジャンプ
     triggerJump() {
         if(!this.canJump) return;
-        this.body.applyImpulse(new CANNON.Vec3(0, Ball.JUMP_FORCE, 0), this.body.position);
+        const forceVector = new CANNON.Vec3(0, Ball.JUMP_FORCE, 0);
+        this.applyImpulse(forceVector);
         this.canJump = false;
     }
 
     // 入力に応じて力を計算
     calculateForce(dt){
+        let force;
         if (gyroEnabled)           
-            calculateForceFromGyro(this, dt);
+            force = calculateForceFromGyro(this, dt);
         else
-            calculateForceFromKeys(this, dt);      
+            force = calculateForceFromKeys(this, dt);  
+        return force;    
     }
 
     // 速度制限
@@ -69,8 +72,8 @@ export class Ball extends DynamicObject{
 
     update(dt){
         // 物理演算
-        this.calculateForce(dt);
-        this.applyForce();
+        const forceVector = this.calculateForce(dt);
+        this.applyForce(forceVector);
         this.clampVelocity();
         // ビジュアル更新
         this.updateVisuals();

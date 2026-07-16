@@ -17,10 +17,10 @@ export function initPhysics() {
     // マテリアル
     const groundMat = new CANNON.Material('ground');
     const ballMat = new CANNON.Material('ball');
-    const boxMat = new CANNON.Material('box');
+    const enemyMat = new CANNON.Material('enemy');
 
     world.addContactMaterial(new CANNON.ContactMaterial(groundMat, ballMat, { friction: 0.7, restitution: 0.2 }));
-    world.addContactMaterial(new CANNON.ContactMaterial(boxMat, ballMat, { friction: 0.3, restitution: 0.4 }));
+    world.addContactMaterial(new CANNON.ContactMaterial(enemyMat, groundMat, { friction: 0.3, restitution: 0.4 }));
 
     // 物理地面
     const groundBody = new CANNON.Body({ mass: 0, material: groundMat });

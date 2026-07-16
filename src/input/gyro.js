@@ -77,19 +77,21 @@ export function resetCalibration() {
 }
 
 // ジャイロの値からボールの向き変化を計算する
-function calculateHeadingFromGyro(ball, dt){
+function calculateHeadingDeltaFromGyro(dt){
     const beta2zero = Math.max(-45, Math.min(45, gyroBeta  - gyroBetaZero));
-    ball.heading += (beta2zero / 45) * Ball.HEADING_SCALE * dt;
+    return (beta2zero / 45) * Ball.HEADING_SCALE * dt;
 }
 
 // ジャイロの値からボールにかかる力を計算する
 export function calculateForceFromGyro(ball, dt){
-    calculateHeadingFromGyro(ball, dt); // dtは仮の値として0.016秒を使用
+    const headingDelta = calculateHeadingDeltaFromGyro(dt);
+    ball.heading += headingDelta;
     const heading = ball.heading;
     const gamma2zero  = Math.max(-45, Math.min(45, gyroGamma - gyroGammaZero));
     const forwardForce = (gamma2zero / 45) * Ball.FORCE_SCALE;
-    ball.fx = Math.sin(heading) * forwardForce;
-    ball.fz = -Math.cos(heading) * forwardForce;
+    const fx = Math.sin(heading) * forwardForce;
+    const fz = -Math.cos(heading) * forwardForce;
+    return new CANNON.Vec3(fx, 0, fz);
 }
 
 

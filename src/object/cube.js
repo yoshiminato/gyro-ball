@@ -37,10 +37,13 @@ export class Cube extends DynamicObject {
         this.weakFace = Cube.FACE.BACK;
         this.headFace = Cube.FACE.FRONT;
 
-        console.log(`difficulty in cube constructor: ${difficulty}`);
-        console.log(`compare value: ${Difficulty.EASY}`);
+        this.difficulty = Number(difficulty);
 
-        switch (Number(difficulty)) {
+        this.dashCooldown = 3000; // 3秒
+        this.lastDashTime = 0;
+
+
+        switch (this.difficulty) {
             case Difficulty.EASY:
                 this.maxHp = 30;
                 break;
@@ -136,19 +139,34 @@ export class Cube extends DynamicObject {
 
     update(target) {
         // 物理演算
-        const targetPos = this.getTargetPosition(target);
-        this.chase(targetPos.x, targetPos.z);
+        this.updateBehavior(target);
         // ビジュアル更新
         this.updateVisuals();
+    }
+
+    updateBehavior(target) {
+
+        // ターゲットの追跡
+        this.chase(target);
+
+        // ターゲットに突進
+        const now = performance.now();
+        if (now - this.lastDashTime >= this.dashCooldown) {
+          this.dash(target);
+          this.lastDashTime = now;
+        }
+
     }
      
 
     // キャラクターの追跡
-    chase(characterX, characterZ) {
+    chase(target) {
 
+        const targetPos = this.getTargetPosition(target);
+        
         const cp = this.body.position;
-        const dx = characterX - cp.x;
-        const dz = characterZ - cp.z;
+        const dx = targetPos.x - cp.x;
+        const dz = targetPos.z - cp.z;
 
         const targetYaw = Math.atan2(dx, dz);
         const error = Math.atan2(
@@ -165,11 +183,48 @@ export class Cube extends DynamicObject {
 
         const distance = Math.sqrt(dx * dx + dz * dz);
         
-        this.fx = Math.sin(this.yaw) * Cube.FORCE_SCALE;
-        this.fz = Math.cos(this.yaw) * Cube.FORCE_SCALE;
+        const fx = Math.sin(this.yaw) * Cube.FORCE_SCALE;
+        const fz = Math.cos(this.yaw) * Cube.FORCE_SCALE;
 
-        this.applyForce();
+        const forceVector = new CANNON.Vec3(fx, 0, fz);
+        this.applyForce(forceVector);
     }
+
+
+    dash(target){
+
+
+        const targetPos = this.getTargetPosition(target);
+
+        const cp = this.body.position;
+        const dx = targetPos.x - cp.x;
+        const dz = targetPos.z - cp.z;
+
+        const targetYaw = Math.atan2(dx, dz);
+        const error = Math.atan2(
+            Math.sin(targetYaw - this.yaw),
+            Math.cos(targetYaw - this.yaw)
+        );
+        this.yaw += error * Cube.TURN_SPEED;
+
+        this.body.quaternion.setFromEuler(
+            0,
+            this.yaw,
+            0
+        );
+
+        const distance = Math.sqrt(dx * dx + dz * dz);
+        
+        const fx = Math.sin(this.yaw) * Cube.FORCE_SCALE;
+        const fz = Math.cos(this.yaw) * Cube.FORCE_SCALE;
+
+        const force = new CANNON.Vec3(fx, 0, fz);
+
+        this.applyImpulse(force);
+
+    }
+
+
 
     updateWeakFace(newWeakFace) {
 
