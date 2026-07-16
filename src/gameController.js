@@ -96,13 +96,11 @@ export function updateGameState(dt) {
 
     // ジャンプ可能判定
     ball.canJump = judgeCanJump.call(ball, world);
-
     ball.update(dt);
 
     switch(Number(opponent)){
         case Opponent.CUBE:
             if(cube) cube.update(ball);
-            console.log(`update`); // デバッグ用にHPを表示
             break;
         case Opponent.SNAKE:
             if(snake) snake.update(ball);

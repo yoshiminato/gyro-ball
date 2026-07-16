@@ -1,4 +1,4 @@
-import { Opponent, Difficulty } from '../constants.js';
+import { Opponent, Difficulty, DifficultyNames } from '../constants.js';
 import { createCubeBody } from '../core/physics.js';
 import { createCubeMesh } from '../core/renderer.js';
 import { DynamicObject } from './dynamicObject.js';
@@ -7,11 +7,32 @@ import { destroyGame } from '../gameController.js';
 
 
 export class Cube extends DynamicObject {
+    
     static id = 0;
     static MASS = 2.0;
     static FORCE_SCALE = 50.0;
-    static TURN_SPEED = 0.005;
     static WEAK_FACE_DAMAGE_COEF = 3.0;
+
+    static TURN_SPEED = {
+        'Easy': 0.007,
+        'Normal': 0.009,
+        'Hard': 0.015
+    }
+    static CHACE_FORCE = {
+        'Easy': 50,
+        'Normal': 55,
+        'Hard': 60
+    }
+    static DASH_FORCE = {
+        'Easy': 0,
+        'Normal': 50,
+        'Hard': 60
+    }
+    static HP = {
+        'Easy': 30,
+        'Normal': 50,
+        'Hard': 100
+    }
 
     static FACE = {
         RIGHT: 0,
@@ -40,18 +61,18 @@ export class Cube extends DynamicObject {
         this.difficulty = Number(difficulty);
 
         this.dashCooldown = 3000; // 3秒
-        this.lastDashTime = 0;
+        this.lastDashTime = performance.now();
 
 
         switch (this.difficulty) {
             case Difficulty.EASY:
-                this.maxHp = 30;
+                this.maxHp = Cube.HP.Easy;
                 break;
             case Difficulty.NORMAL:
-                this.maxHp = 50;
+                this.maxHp = Cube.HP.Normal;
                 break;
             case Difficulty.HARD:
-                this.maxHp = 100;
+                this.maxHp = Cube.HP.Hard;
                 break;
             default:
                 console.log("default")
@@ -86,7 +107,7 @@ export class Cube extends DynamicObject {
         if (event.body.name !== 'ball') return null;
 
         // 衝突面の法線ベクトル方向の速度を取得
-        const impactSpeed = event.contact.getImpactVelocityAlongNormal();
+        const impactSpeed = Math.abs(event.contact.getImpactVelocityAlongNormal());
         const worldNormal = event.contact.ni;
         const inv = this.body.quaternion.inverse();
         const localNormal = inv.vmult(worldNormal);
@@ -173,7 +194,8 @@ export class Cube extends DynamicObject {
             Math.sin(targetYaw - this.yaw),
             Math.cos(targetYaw - this.yaw)
         );
-        this.yaw += error * Cube.TURN_SPEED;
+        const difficultyName = DifficultyNames[this.difficulty];
+        this.yaw += error * Cube.TURN_SPEED[difficultyName];
 
         this.body.quaternion.setFromEuler(
             0,
@@ -182,9 +204,11 @@ export class Cube extends DynamicObject {
         );
 
         const distance = Math.sqrt(dx * dx + dz * dz);
+
+        const chaseForce = Cube.CHACE_FORCE[difficultyName];
         
-        const fx = Math.sin(this.yaw) * Cube.FORCE_SCALE;
-        const fz = Math.cos(this.yaw) * Cube.FORCE_SCALE;
+        const fx = Math.sin(this.yaw) * chaseForce;
+        const fz = Math.cos(this.yaw) * chaseForce;
 
         const forceVector = new CANNON.Vec3(fx, 0, fz);
         this.applyForce(forceVector);
@@ -205,7 +229,8 @@ export class Cube extends DynamicObject {
             Math.sin(targetYaw - this.yaw),
             Math.cos(targetYaw - this.yaw)
         );
-        this.yaw += error * Cube.TURN_SPEED;
+        const difficultyName = DifficultyNames[this.difficulty];
+        this.yaw += error * Cube.TURN_SPEED[difficultyName];
 
         this.body.quaternion.setFromEuler(
             0,
@@ -215,8 +240,10 @@ export class Cube extends DynamicObject {
 
         const distance = Math.sqrt(dx * dx + dz * dz);
         
-        const fx = Math.sin(this.yaw) * Cube.FORCE_SCALE;
-        const fz = Math.cos(this.yaw) * Cube.FORCE_SCALE;
+        const dashForce = Cube.DASH_FORCE[difficultyName];
+        
+        const fx = Math.sin(this.yaw) * dashForce;
+        const fz = Math.cos(this.yaw) * dashForce;
 
         const force = new CANNON.Vec3(fx, 0, fz);
 

@@ -12,13 +12,13 @@ export class DynamicObject {
     }
 
     applyForce(force, object=this, point=null) {
-        if(force.x == 0 && force.z == 0) return;
+        if(force.x == 0 && force.y == 0 && force.z == 0) return;
         if(!point) point = object.body.position;
         object.body.applyForce(force, point);
     }
 
     applyImpulse(force, object=this, point=null) {
-        if(force.x == 0 && force.z == 0) return;
+        if(force.x == 0 && force.y == 0 && force.z == 0) return;
         if(!point) point = object.body.position;
         object.body.applyImpulse(force, point);
     }

@@ -7,7 +7,7 @@ import { DynamicObject } from './dynamicObject.js';
 
 export class Ball extends DynamicObject{
 
-    static BALL_R = 0.6;
+    static BALL_R = 1;
     static FORCE_SCALE = 60;
     static HEADING_SCALE = 2.0;
     static MAX_VEL = 15;
@@ -49,6 +49,7 @@ export class Ball extends DynamicObject{
         if(!this.canJump) return;
         const forceVector = new CANNON.Vec3(0, Ball.JUMP_FORCE, 0);
         this.applyImpulse(forceVector);
+        console.log(`applyImpulse: ${forceVector.x}, ${forceVector.y}, ${forceVector.z}`);
         this.canJump = false;
     }
 

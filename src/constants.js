@@ -9,3 +9,10 @@ export const Difficulty = {
     NORMAL: 1,
     HARD: 2,
 };
+
+export const DifficultyNames = {
+    [Difficulty.TUTORIAL]: 'Tutorial',
+    [Difficulty.EASY]: 'Easy',
+    [Difficulty.NORMAL]: 'Normal',
+    [Difficulty.HARD]: 'Hard',
+};

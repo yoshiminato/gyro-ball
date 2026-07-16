@@ -20,7 +20,7 @@ export function initPhysics() {
     const enemyMat = new CANNON.Material('enemy');
 
     world.addContactMaterial(new CANNON.ContactMaterial(groundMat, ballMat, { friction: 0.7, restitution: 0.2 }));
-    world.addContactMaterial(new CANNON.ContactMaterial(enemyMat, groundMat, { friction: 0.3, restitution: 0.4 }));
+    world.addContactMaterial(new CANNON.ContactMaterial(enemyMat, groundMat, { friction: 0.4, restitution: 0.3 }));
 
     // 物理地面
     const groundBody = new CANNON.Body({ mass: 0, material: groundMat });
@@ -58,7 +58,8 @@ export function createBallBody(radius) {
 
 export function createCubeBody(x, z, w, h, d, id, mass = 2, boxMat) {
     console.log(`Creating cube body at (${x}, ${z}) with dimensions (${w}, ${h}, ${d}) and mass ${mass}`);
-    const body = new CANNON.Body({ mass: mass, material: boxMat });
+    const enemyMat = world.materials.find(m => m.name === 'enemy') || new CANNON.Material('enemy');
+    const body = new CANNON.Body({ mass: mass, material: enemyMat });
     body.addShape(new CANNON.Box(new CANNON.Vec3(w / 2, h / 2, d / 2)));
     body.position.set(x, h / 2, z);
     body.id = id; // メッシュと紐づけるための固有ID
@@ -78,6 +79,8 @@ export function createSnakeBody(
     const constraints = [];
     const radii = [];
 
+    const enemyMat = world.materials.find(m => m.name === 'enemy') || new CANNON.Material('enemy');
+
     for (let i = 0; i < count; i++) {
 
         // 頭が一番大きく、尻尾ほど小さい
@@ -89,7 +92,8 @@ export function createSnakeBody(
         const body = new CANNON.Body({
             mass,
             linearDamping: 0.2,
-            angularDamping: 0.95
+            angularDamping: 0.95,
+            material: enemyMat
         });
 
         body.addShape(new CANNON.Sphere(r));
