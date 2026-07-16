@@ -275,6 +275,33 @@ function createStars() {
     scene.add(new THREE.Points(starGeo, starMat));
 }
 
+
+// 光線のメッシュの作成
+export function createLightRayMesh() {
+    // 高さ1、中心が原点の円柱
+    const geometry = new THREE.CylinderGeometry(
+        0.12,
+        0.12,
+        1,
+        12
+    );
+
+    const material = new THREE.MeshBasicMaterial({
+        color: 0xff2222,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.visible = false;
+
+    scene.add(mesh);
+
+    return mesh;
+}
+
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();

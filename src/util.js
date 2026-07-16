@@ -7,9 +7,9 @@ export function isMobileDevice() {
   return /iphone|ipad|ipod|android/.test(ua);
 }
 
+
 // 全画面 & 横画面
 export async function setupGameScreen(e){
-
     if (typeof screen.orientation !== 'undefined' && typeof screen.orientation.lock === 'function') {
         try {
             // 画面を全画面にする

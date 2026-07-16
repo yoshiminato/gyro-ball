@@ -1,6 +1,9 @@
 import { DynamicObject } from "./dynamicObject.js";
 import { createSnakeBody } from "../core/physics.js";
-import { createSnakeMesh } from "../core/renderer.js";
+import {
+    createSnakeMesh,
+    createLightRayMesh
+} from "../core/renderer.js";
 
 export class Snake extends DynamicObject {
 
@@ -32,6 +35,12 @@ export class Snake extends DynamicObject {
         this.bodies = snake.bodies;
         this.constraints = snake.constraints;
 
+        this.lightRayMesh = createLightRayMesh();
+
+        this.rayDirection = new THREE.Vector3();
+        this.rayMidPoint = new THREE.Vector3();
+        this.rayYAxis = new THREE.Vector3(0, 1, 0);
+
         this.meshes = createSnakeMesh(
             x,
             z,
@@ -48,6 +57,9 @@ export class Snake extends DynamicObject {
         this.chase(targetPos.x, targetPos.z);
         // ビジュアル更新
         this.updateVisuals();
+
+        // 頭からボールへ光線を表示
+        this.emitLightRay(ball.mesh.position);
     }
 
     chase(targetX, targetZ) {
@@ -86,9 +98,7 @@ export class Snake extends DynamicObject {
     }
 
     updateVisuals() {
-
         for (let i = 0; i < this.bodies.length; i++) {
-
             this.meshes[i].position.copy(
                 this.bodies[i].position
             );
@@ -100,10 +110,37 @@ export class Snake extends DynamicObject {
             this.meshes[i].quaternion.copy(
                 this.bodies[i].quaternion
             );
-
         }
-
-
     }
 
+    emitLightRay(targetPosition) {
+        const mesh = this.lightRayMesh;
+        const start = this.meshes[0].position;
+        const end = targetPosition;
+
+        this.rayDirection.subVectors(end, start);
+        const length = this.rayDirection.length();
+
+        if (length < 0.001) {
+            mesh.visible = false;
+            return;
+        }
+
+        mesh.visible = true;
+
+        this.rayMidPoint
+            .addVectors(start, end)
+            .multiplyScalar(0.5);
+
+        mesh.position.copy(this.rayMidPoint);
+
+        // CylinderGeometryの高さが1なのでY方向をlength倍する
+        mesh.scale.set(1, length, 1);
+
+        // 円柱の+Y方向をstart → end方向へ向ける
+        mesh.quaternion.setFromUnitVectors(
+            this.rayYAxis,
+            this.rayDirection.normalize()
+        );
+    }
 }

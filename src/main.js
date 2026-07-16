@@ -58,7 +58,6 @@ function init(e) {
     setupCollisionHandler(obstacles);
     setupEvents();
 
-
     resetCalibration();
     requestGyro();
     lastTime = performance.now();
