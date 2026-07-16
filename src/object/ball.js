@@ -49,7 +49,6 @@ export class Ball extends DynamicObject{
         if(!this.canJump) return;
         const forceVector = new CANNON.Vec3(0, Ball.JUMP_FORCE, 0);
         this.applyImpulse(forceVector);
-        console.log(`applyImpulse: ${forceVector.x}, ${forceVector.y}, ${forceVector.z}`);
         this.canJump = false;
     }
 

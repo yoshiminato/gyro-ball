@@ -16,3 +16,6 @@ export const DifficultyNames = {
     [Difficulty.NORMAL]: 'Normal',
     [Difficulty.HARD]: 'Hard',
 };
+
+// 旧正方形フィールドの一辺（50）を、新しい円形フィールドの半径にする
+export const FIELD_RADIUS = 50;

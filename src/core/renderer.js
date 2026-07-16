@@ -2,13 +2,12 @@
 // renderer.js - Three.js 描画・視覚効果担当
 // ============================================================
 
+import { FIELD_RADIUS } from '../constants.js';
+
 export let renderer, scene, camera;
 export let ballMesh, ballLight, neonLight1, neonLight2;
 export const obstacles = []; // 描画用メッシュとマテリアルの保持
 
-const FIELD_SIZE = 100;
-const TILE_COUNT = 20;
-const tileSize = FIELD_SIZE / TILE_COUNT;
 const cubeColor = 0x4488ff;
 
 export function initRenderer() {
@@ -42,34 +41,48 @@ function createGround() {
     const groundGroup = new THREE.Group();
     scene.add(groundGroup);
 
-    const color1 = new THREE.Color(0x1a2a4a);
-    const color2 = new THREE.Color(0x0d1a30);
-    const color3 = new THREE.Color(0x2a1a4a);
+    // 円形フィールド本体
+    const groundGeometry = new THREE.CircleGeometry(FIELD_RADIUS, 128);
+    const groundMaterial = new THREE.MeshLambertMaterial({
+        color: 0x101d38,
+        side: THREE.DoubleSide
+    });
+    const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+    groundMesh.rotation.x = -Math.PI / 2;
+    groundMesh.receiveShadow = true;
+    groundGroup.add(groundMesh);
 
-    for (let ix = 0; ix < TILE_COUNT; ix++) {
-        for (let iz = 0; iz < TILE_COUNT; iz++) {
-            const geo = new THREE.PlaneGeometry(tileSize - 0.05, tileSize - 0.05);
-            let col;
-            const region = Math.floor(ix / 5) + Math.floor(iz / 5);
-            if (region % 3 === 2) col = color3;
-            else col = (ix + iz) % 2 === 0 ? color1 : color2;
+    // 円形グリッドでフィールド内部の距離と方向を見やすくする
+    const polarGrid = new THREE.PolarGridHelper(
+        FIELD_RADIUS,
+        24,
+        10,
+        128,
+        0x365b8c,
+        0x223855
+    );
+    polarGrid.position.y = 0.02;
+    groundGroup.add(polarGrid);
 
-            const mat = new THREE.MeshLambertMaterial({ color: col });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.rotation.x = -Math.PI / 2;
-            mesh.position.set(
-                (ix - TILE_COUNT / 2 + 0.5) * tileSize,
-                0,
-                (iz - TILE_COUNT / 2 + 0.5) * tileSize
-            );
-            mesh.receiveShadow = true;
-            groundGroup.add(mesh);
-        }
-    }
-
-    const gridHelper = new THREE.GridHelper(FIELD_SIZE, TILE_COUNT, 0x334466, 0x223355);
-    gridHelper.position.y = 0.01;
-    scene.add(gridHelper);
+    // 明るいリングを物理壁と同じ位置に置き、境界を明示する
+    const boundaryGeometry = new THREE.TorusGeometry(
+        FIELD_RADIUS,
+        0.2,
+        8,
+        128
+    );
+    const boundaryMaterial = new THREE.MeshBasicMaterial({
+        color: 0x33ccff,
+        transparent: true,
+        opacity: 0.95
+    });
+    const boundaryMesh = new THREE.Mesh(
+        boundaryGeometry,
+        boundaryMaterial
+    );
+    boundaryMesh.rotation.x = Math.PI / 2;
+    boundaryMesh.position.y = 0.12;
+    groundGroup.add(boundaryMesh);
 }
 
 export function createBallMesh(radius) {
@@ -282,11 +295,11 @@ function createStars() {
 
 
 // 光線のメッシュの作成
-export function createLightRayMesh() {
+export function createLightRayMesh(radius = 0.12) {
     // 高さ1、中心が原点の円柱
     const geometry = new THREE.CylinderGeometry(
-        0.12,
-        0.12,
+        radius,
+        radius,
         1,
         12
     );

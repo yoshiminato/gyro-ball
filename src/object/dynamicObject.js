@@ -11,16 +11,16 @@ export class DynamicObject {
         this.mesh.quaternion.copy(this.body.quaternion);
     }
 
-    applyForce(force, object=this, point=null) {
+    applyForce(force, body=this.body, point=null) {
         if(force.x == 0 && force.y == 0 && force.z == 0) return;
-        if(!point) point = object.body.position;
-        object.body.applyForce(force, point);
+        if(!point) point = body.position;
+        body.applyForce(force, point);
     }
 
-    applyImpulse(force, object=this, point=null) {
+    applyImpulse(force, body=this.body, point=null) {
         if(force.x == 0 && force.y == 0 && force.z == 0) return;
-        if(!point) point = object.body.position;
-        object.body.applyImpulse(force, point);
+        if(!point) point = body.position;
+        body.applyImpulse(force, point);
     }
 
     getTargetPosition(target) {

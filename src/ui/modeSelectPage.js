@@ -2,6 +2,7 @@ import { Opponent, Difficulty } from '../constants.js';
 import { opponent, difficulty, updateOpponentAndDifficulty } from '../gameController.js';
 
 export function showModeSelectPage() {
+    injectModeSelectStyles();
 
     // 背景画像の設定
     document.body.style.backgroundImage = "url('asset/img/gameView.png')";
@@ -33,10 +34,13 @@ export function showModeSelectPage() {
     cubeContainer.className = 'cube-card-container';
     cubeContainer.classList.add('opponent-container'); // 💡 className = ... だと上書きされちゃうのでclassListに変更！
 
+    const cubeImageFrame = document.createElement('div');
+    cubeImageFrame.className = 'opponent-image-frame';
+
     // 敵のキューブの画像 or gif 
     const cubeImg = document.createElement('img');
-    cubeImg.className = 'cube-opponent-enemy-img';
-    cubeImg.src = 'asset/img/cube.gif';
+    cubeImg.className = 'cube-opponent-enemy-img opponent-enemy-img';
+    cubeImg.src = 'asset/img/cube.png';
     cubeImg.alt = 'Cube Enemy';
 
     // 難易度選択UIのラッパー
@@ -78,10 +82,13 @@ export function showModeSelectPage() {
     snakeContainer.className = 'snake-card-container';
     snakeContainer.classList.add('opponent-container');
 
+    const snakeImageFrame = document.createElement('div');
+    snakeImageFrame.className = 'opponent-image-frame';
+
     // 敵のスネークの画像 or gif 
     const snakeEnemyImg = document.createElement('img');
-    snakeEnemyImg.className = 'snake-opponent-enemy-img';
-    snakeEnemyImg.src = 'asset/img/snake.gif';
+    snakeEnemyImg.className = 'snake-opponent-enemy-img opponent-enemy-img';
+    snakeEnemyImg.src = 'asset/img/snake.png';
     snakeEnemyImg.alt = 'Snake Enemy';
 
     // 難易度選択UIのラッパー
@@ -154,14 +161,16 @@ export function showModeSelectPage() {
     cubeDifficultySelectUiWrapper.appendChild(cubeEasyBtn);
     cubeDifficultySelectUiWrapper.appendChild(cubeMediumBtn);
     cubeDifficultySelectUiWrapper.appendChild(cubeHardBtn);
-    cubeContainer.appendChild(cubeImg);
+    cubeImageFrame.appendChild(cubeImg);
+    cubeContainer.appendChild(cubeImageFrame);
     cubeContainer.appendChild(cubeDifficultySelectUiWrapper);
 
     snakeDifficultySelectUiWrapper.appendChild(snakeTutorialBtn);
     snakeDifficultySelectUiWrapper.appendChild(snakeEasyBtn);
     snakeDifficultySelectUiWrapper.appendChild(snakeMediumBtn);
     snakeDifficultySelectUiWrapper.appendChild(snakeHardBtn);
-    snakeContainer.appendChild(snakeEnemyImg);
+    snakeImageFrame.appendChild(snakeEnemyImg);
+    snakeContainer.appendChild(snakeImageFrame);
     snakeContainer.appendChild(snakeDifficultySelectUiWrapper);
 
     // 💡 敵の選択ラッパーは、新設したコンテナに入れる
@@ -214,4 +223,134 @@ export function showModeSelectPage() {
             modeSelectOverlay.remove();
         }
     }
+}
+
+function injectModeSelectStyles() {
+    if (document.getElementById('mode-select-page-styles')) return;
+
+    const style = document.createElement('style');
+    style.id = 'mode-select-page-styles';
+    style.textContent = `
+        #mode-select-overlay {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            padding: 32px 20px;
+            box-sizing: border-box;
+            background: rgba(8, 10, 24, 0.45);
+        }
+
+        #title-mode-select-page {
+            margin: 0;
+            color: #ffffff;
+            letter-spacing: 0.08em;
+            text-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+        }
+
+        .opponent-cards-container {
+            width: min(960px, 100%);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 24px;
+        }
+
+        .opponent-container {
+            width: min(420px, 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+            padding: 24px 20px;
+            border-radius: 24px;
+            background: rgba(10, 18, 34, 0.78);
+            border: 2px solid rgba(255, 255, 255, 0.14);
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
+            box-sizing: border-box;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .selected-opponent {
+            transform: translateY(-4px);
+            border-color: rgba(111, 226, 255, 0.9);
+            box-shadow: 0 22px 44px rgba(0, 0, 0, 0.36);
+        }
+
+        .opponent-image-frame {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            border-radius: 18px;
+            background:
+                radial-gradient(circle at top, rgba(130, 213, 255, 0.2), transparent 55%),
+                rgba(255, 255, 255, 0.06);
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .opponent-enemy-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.35));
+        }
+
+        .difficulty-select-ui-wrapper {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .difficulty-btn,
+        #game-start-btn {
+            border: none;
+            border-radius: 999px;
+            padding: 12px 16px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .difficulty-btn.selected {
+            outline: 3px solid rgba(255, 255, 255, 0.85);
+            outline-offset: 1px;
+        }
+
+        .tutorial-btn { background: #fff2a8; color: #3f3300; }
+        .easy-btn { background: #9cf2b2; color: #083d18; }
+        .medium-btn { background: #ffd27d; color: #4e2800; }
+        .hard-btn { background: #ff9d9d; color: #4d0303; }
+
+        #game-start-btn {
+            min-width: min(280px, 100%);
+            background: linear-gradient(135deg, #66e4ff, #45b8ff);
+            color: #062338;
+            box-shadow: 0 14px 30px rgba(34, 158, 215, 0.35);
+        }
+
+        @media (max-width: 768px) {
+            #mode-select-overlay {
+                justify-content: flex-start;
+                padding-top: 28px;
+            }
+
+            .opponent-container {
+                padding: 18px 16px;
+            }
+
+            .difficulty-select-ui-wrapper {
+                grid-template-columns: 1fr;
+            }
+        }
+    `;
+
+    document.head.appendChild(style);
 }

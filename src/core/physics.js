@@ -2,11 +2,15 @@
 // physics.js - Cannon.js 物理エンジン担当
 // ============================================================
 
+import { FIELD_RADIUS } from '../constants.js';
+
 export let world, ballBody;
 export const obstacleBodies = []; // main.jsや衝突判定で参照用
 let hitCount = 0;
 
-const FIELD_SIZE = 50//100;
+const FIELD_WALL_HEIGHT = 10;
+const FIELD_WALL_THICKNESS = 1;
+const FIELD_WALL_SEGMENTS = 64;
 
 export function initPhysics() {
     world = new CANNON.World();
@@ -29,19 +33,51 @@ export function initPhysics() {
     groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
     world.addBody(groundBody);
 
-    // 外周の壁
-    const W = FIELD_SIZE / 2, H = 5;
-    addWall(W, H / 2, 0, 1, H * 2, FIELD_SIZE);
-    addWall(-W, H / 2, 0, 1, H * 2, FIELD_SIZE);
-    addWall(0, H / 2, W, FIELD_SIZE, H * 2, 1);
-    addWall(0, H / 2, -W, FIELD_SIZE, H * 2, 1);
+    // 円周に短い壁を並べ、円形フィールドの境界を作る
+    addCircularWall(
+        FIELD_RADIUS,
+        FIELD_WALL_HEIGHT,
+        FIELD_WALL_THICKNESS,
+        FIELD_WALL_SEGMENTS
+    );
 }
 
-function addWall(x, y, z, sx, sy, sz) {
-    const b = new CANNON.Body({ mass: 0 });
-    b.addShape(new CANNON.Box(new CANNON.Vec3(sx / 2, sy / 2, sz / 2)));
-    b.position.set(x, y, z);
-    world.addBody(b);
+/**
+ * 円周に直方体の壁を並べて、内側から出られない境界を作る
+ * @param {number} radius - フィールド内側の半径
+ * @param {number} height - 壁の高さ
+ * @param {number} thickness - 壁の厚さ
+ * @param {number} segmentCount - 円周を構成する壁の数
+ * @returns {void}
+ */
+function addCircularWall(radius, height, thickness, segmentCount) {
+    const angleStep = Math.PI * 2 / segmentCount;
+    const segmentLength = 2 * radius * Math.tan(Math.PI / segmentCount);
+    const wallCenterRadius = radius + thickness / 2;
+
+    for (let i = 0; i < segmentCount; i++) {
+        const angle = i * angleStep;
+        const wallBody = new CANNON.Body({ mass: 0 });
+
+        // ローカルX方向を円周の接線方向へ向ける
+        wallBody.addShape(new CANNON.Box(new CANNON.Vec3(
+            segmentLength / 2,
+            height / 2,
+            thickness / 2
+        )));
+        wallBody.position.set(
+            Math.cos(angle) * wallCenterRadius,
+            height / 2,
+            Math.sin(angle) * wallCenterRadius
+        );
+        wallBody.quaternion.setFromAxisAngle(
+            new CANNON.Vec3(0, 1, 0),
+            -angle - Math.PI / 2
+        );
+        wallBody.name = 'field-wall';
+
+        world.addBody(wallBody);
+    }
 }
 
 export function createBallBody(radius) {
