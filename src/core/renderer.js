@@ -161,7 +161,7 @@ export function createCubeMesh(
     return mesh;
 }
 
-export function createSnakeMesh(x, z, radius, count) {
+export function createSnakeMesh(x, z, radius, count, weakSegmentIndex) {
 
     const meshes = [];
 
@@ -169,10 +169,16 @@ export function createSnakeMesh(x, z, radius, count) {
 
         const r = radius * Math.pow(0.9, i);
 
+        const isHead = i === 0;
+        const isWeakSegment = i === weakSegmentIndex;
+
         const material = new THREE.MeshPhongMaterial({
-            color: 0x222222,
-            emissive: i === 0 ? 0xaa0000 : 0x330000,
-            shininess: 120
+            color: isWeakSegment ? 0xffd54f : 0x222222,
+            emissive: isWeakSegment
+                ? 0xff8f00
+                : (isHead ? 0xaa0000 : 0x330000),
+            emissiveIntensity: isWeakSegment ? 1.5 : 1,
+            shininess: isWeakSegment ? 180 : 120
         });
 
         const mesh = new THREE.Mesh(

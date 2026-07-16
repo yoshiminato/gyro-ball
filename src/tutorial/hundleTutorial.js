@@ -1,3 +1,6 @@
+import { opponent, difficulty } from '../gameController.js';
+import { Opponent, Difficulty } from '../constants.js';
+
 export async function hundleTutorial(event) {
 
     // チュートリアルをスキップするか否か
@@ -6,22 +9,13 @@ export async function hundleTutorial(event) {
     if (skipTutorial) 
         return;
 
-    // ゲームモード(対戦相手)
-    const mode = event.detail.mode;
-
-    switch (mode) {
-        case 'cube':
-            await import('./tutorial/tutorialCube.js').then(module => {
-                module.startTutorialCube();
-            });
+    switch (Number(opponent)) {
+        case Opponent.CUBE:
             break;
-        case 'ball':
-            await import('./tutorial/tutorialBall.js').then(module => {
-                module.startTutorialBall();
-            });
+        case Opponent.SNAKE:
             break;
         default:
-            console.error(`Unknown mode: ${mode}`);
+            console.error(`Unknown opponent: ${opponent}`);
     }
 
 

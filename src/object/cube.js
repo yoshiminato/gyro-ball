@@ -94,9 +94,7 @@ export class Cube extends DynamicObject {
         // cubeの正面に衝突した場合
         if(localNormal.z < - 0.1){
             // ゲームオーバー
-            const gameOverEvent = new CustomEvent('game-over', {
-                detail: { opponent: Opponent.CUBE, difficulty: this.difficulty }
-            });
+            const gameOverEvent = new CustomEvent('game-over');
             console.log('Game Over! Cube hit on the front face.');
             window.dispatchEvent(gameOverEvent);
             return null;
