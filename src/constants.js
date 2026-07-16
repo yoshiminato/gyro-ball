@@ -4,6 +4,7 @@ export const Opponent = {
 };
 
 export const Difficulty = {
+    TUTORIAL: -1,
     EASY: 0,
     NORMAL: 1,
     HARD: 2,

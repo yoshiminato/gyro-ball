@@ -81,6 +81,7 @@
 }
 
 /* 難易度ごとの色 */
+.tutorial-btn { background: #6a1b9a; }
 .easy-btn { background: #0288d1; }
 .medium-btn { background: #e65100; }
 .hard-btn { background: #c62828; }

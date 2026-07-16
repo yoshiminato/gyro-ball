@@ -6,9 +6,11 @@ export async function hundleTutorial(event) {
     // チュートリアルをスキップするか否か
     const skipTutorial = event.detail.skipTutorial;
 
+    // 
     if (skipTutorial) 
         return;
 
+    //
     switch (Number(opponent)) {
         case Opponent.CUBE:
             break;
@@ -17,7 +19,4 @@ export async function hundleTutorial(event) {
         default:
             console.error(`Unknown opponent: ${opponent}`);
     }
-
-
-
 }
