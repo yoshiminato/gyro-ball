@@ -101,7 +101,6 @@ export function createCubeMesh(
     w,
     h,
     d,
-    colorIdx,
     headFace = 4,
     weakFace = 5
 ) {

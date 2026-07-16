@@ -56,13 +56,12 @@ export function createBallBody(radius) {
 }
 
 
-export function createCubeBody(x, z, w, h, d, id, mass = 2, boxMat) {
+export function createCubeBody(x, z, w, h, d, mass = 2, boxMat) {
     console.log(`Creating cube body at (${x}, ${z}) with dimensions (${w}, ${h}, ${d}) and mass ${mass}`);
     const enemyMat = world.materials.find(m => m.name === 'enemy') || new CANNON.Material('enemy');
     const body = new CANNON.Body({ mass: mass, material: enemyMat });
     body.addShape(new CANNON.Box(new CANNON.Vec3(w / 2, h / 2, d / 2)));
     body.position.set(x, h / 2, z);
-    body.id = id; // メッシュと紐づけるための固有ID
     world.addBody(body);
     obstacleBodies.push(body);
     return body;

@@ -127,7 +127,7 @@ export class Snake extends DynamicObject {
 
     update(target){
         // 物理演算
-        this.chase(targetPos.x, targetPos.z);
+        this.chase(target);
         // ビジュアル更新
         this.updateVisuals();
 

@@ -8,33 +8,43 @@ import { destroyGame } from '../gameController.js';
 
 export class Cube extends DynamicObject {
     
-    static id = 0;
-    static MASS = 2.0;
-    static FORCE_SCALE = 50.0;
-    static WEAK_FACE_DAMAGE_COEF = 3.0;
+    static MASS = 2.0;                   // 質量  
+    static WEAK_FACE_DAMAGE_COEF = 3.0;  // 弱点面のダメージ倍率
 
-    static TURN_SPEED = {
+    static TURN_SPEED = {                // 平時ターン速度
         'Easy': 0.007,
         'Normal': 0.009,
         'Hard': 0.015
     }
-    static CHACE_FORCE = {
-        'Easy': 50,
+    static WARNING_TURN_SPEED = {        // 突進待機時ターン速度
+        'Easy': 0.01,
+        'Normal': 0.015,
+        'Hard': 0.2
+    }
+    static CHACE_FORCE = {               // 追跡時に印加する力
+        'Easy': 53,
         'Normal': 55,
         'Hard': 60
     }
-    static DASH_FORCE = {
+    static DASH_FORCE = {                // 突進時に印加する力
         'Easy': 0,
         'Normal': 50,
         'Hard': 60
     }
-    static HP = {
+    static DASH_WARNING_DURATION = {     // 突進待機時間
+        'Easy': 0,
+        'Normal': 1200,
+        'Hard': 1000
+    }
+    static DASH_BLINK_INTERVAL = 150;    // 点滅周期
+
+    static MAX_HP = {                    // 最大HP
         'Easy': 30,
         'Normal': 50,
         'Hard': 100
     }
 
-    static FACE = {
+    static FACE = {                      // 面の識別子
         RIGHT: 0,
         LEFT: 1,
         TOP: 2,
@@ -44,35 +54,36 @@ export class Cube extends DynamicObject {
         NONE: -1
     };
 
-    static initialPosition = { x: 0, z: -6, h: 3, w: 3, d: 3 };
+    static initialPosition = { x: 0, z: -6, h: 3, w: 3, d: 3 }; // 初期位置とサイズ
 
     constructor(difficulty) {
         const { x, z, h, w, d } = Cube.initialPosition;
         super();
-        this.yaw = 0;
-        this.id = Cube.id++;
-        this.difficulty = difficulty;
-        this.body = createCubeBody(x, z, w, h, d, this.id, Cube.MASS);
-        this.mesh = createCubeMesh(x, z, w, h, d, this.id, Cube.FACE.FRONT, Cube.FACE.BACK);
+        this.yaw = 0;                          // 回転角度（ラジアン）               
+        this.difficulty = Number(difficulty);  // 難易度
+        this.body = createCubeBody(x, z, w, h, d, Cube.MASS);                        // 物理エンジン側のボディ
+        this.mesh = createCubeMesh(x, z, w, h, d, Cube.FACE.FRONT, Cube.FACE.BACK);  // ビジュアル側のメッシュ
 
-        this.weakFace = Cube.FACE.BACK;
-        this.headFace = Cube.FACE.FRONT;
+        this.weakFace = Cube.FACE.BACK;        // 弱点面(背面)
+        this.headFace = Cube.FACE.FRONT;       // 正面（進行方向）面
 
-        this.difficulty = Number(difficulty);
+        
 
-        this.dashCooldown = 3000; // 3秒
+        this.dashCooldown = 4000; // 突進のクールダウン時間（ミリ秒）
         this.lastDashTime = performance.now();
+        this.isPreparingDash = false;          // 突進待機中
+        this.dashWarningStartedAt = 0;
 
 
         switch (this.difficulty) {
             case Difficulty.EASY:
-                this.maxHp = Cube.HP.Easy;
+                this.maxHp = Cube.MAX_HP.Easy;
                 break;
             case Difficulty.NORMAL:
-                this.maxHp = Cube.HP.Normal;
+                this.maxHp = Cube.MAX_HP.Normal;
                 break;
             case Difficulty.HARD:
-                this.maxHp = Cube.HP.Hard;
+                this.maxHp = Cube.MAX_HP.Hard;
                 break;
             default:
                 console.log("default")
@@ -86,6 +97,11 @@ export class Cube extends DynamicObject {
         this.body.addEventListener('collide', (e) => this.hundleDamageEvent(e));
     }
 
+    /**
+    * 衝突イベントのハンドラ
+    * @param {CANNON.Event} event - 衝突イベント
+    * @returns {void}　
+    */
     hundleDamageEvent(event) {
 
         // 衝突イベントからダメージを計算
@@ -102,6 +118,11 @@ export class Cube extends DynamicObject {
 
     }
 
+    /**
+    * 衝突イベントからダメージを計算
+    * @param {CANNON.Event} event - 衝突イベント
+    * @returns {number | null} - 計算されたダメージ量。ダメージがない場合はnullを返す　
+    */
     calculateDamage(event) {
 
         if (event.body.name !== 'ball') return null;
@@ -146,7 +167,11 @@ export class Cube extends DynamicObject {
         }
     }
 
-    // ダメージ反映
+    /**
+    * 突進待機状態を解除
+    * @param {number} damage - 受けたダメージ量
+    * @returns {void}　
+    */
     applyDamage(damage) {
         this.hp -= damage;
         if (this.hp <= 0) {
@@ -158,6 +183,11 @@ export class Cube extends DynamicObject {
         }
     }
 
+    /**
+    * 状態更新
+    * @param {Ball} target - ターゲット(操作対象のボール)
+    * @returns {void}　
+    */
     update(target) {
         // 物理演算
         this.updateBehavior(target);
@@ -165,81 +195,140 @@ export class Cube extends DynamicObject {
         this.updateVisuals();
     }
 
+    /**
+    * 物理的挙動を制御
+    * @param {Ball} target - ターゲット(操作対象のボール)
+    * @returns {void}　
+    */
     updateBehavior(target) {
 
-        // ターゲットの追跡
-        this.chase(target);
-
-        // ターゲットに突進
         const now = performance.now();
-        if (now - this.lastDashTime >= this.dashCooldown) {
-          this.dash(target);
-          this.lastDashTime = now;
+
+        // 突進待機中は移動せず、ターゲットの方向を向くだけにする
+        if (this.isPreparingDash) {
+            const difficultyName = DifficultyNames[this.difficulty];
+            const warningTurnSpeed = Cube.WARNING_TURN_SPEED[difficultyName];
+            this.turnTowardTarget(target, warningTurnSpeed);
+            this.updateDashWarning(now);
+
+            // 待機時間の取得
+            const warningDuration = Cube.DASH_WARNING_DURATION[difficultyName];
+
+            // 待機時間が経過したら突進を開始
+            if (now - this.dashWarningStartedAt >= warningDuration) {
+                this.finishDashWarning();
+                this.dash();
+                this.lastDashTime = now;
+            }
+            return;
         }
 
+        // クールダウン終了後、すぐに突進せず予兆状態へ移行する
+        if (now - this.lastDashTime >= this.dashCooldown) {
+            const difficultyName = DifficultyNames[this.difficulty];
+            const warningTurnSpeed = Cube.WARNING_TURN_SPEED[difficultyName];
+
+            this.startDashWarning(now);
+            this.turnTowardTarget(target, warningTurnSpeed);
+            return;
+        }
+
+        // 通常時のみターゲットを追跡する
+        this.chase(target);
     }
-     
 
-    // キャラクターの追跡
-    chase(target) {
+    /**
+    * ターゲットの方向へ回転
+    * @param {Ball} target - ターゲット(操作対象のボール)
+    * @param {number} turnSpeed - 回転速度
+    * @returns {void}　
+    */
+    turnTowardTarget(target, turnSpeed) {
 
+        // 異常値チェック
+        if (!Number.isFinite(turnSpeed)) {
+            console.error(`回転速度が異常値: ${turnSpeed}`);
+            return;
+        }
+
+        // ターゲットまでの向きを計算
         const targetPos = this.getTargetPosition(target);
-        
         const cp = this.body.position;
         const dx = targetPos.x - cp.x;
         const dz = targetPos.z - cp.z;
-
         const targetYaw = Math.atan2(dx, dz);
+        
+        // 回転方向を決定 & 適用
         const error = Math.atan2(
             Math.sin(targetYaw - this.yaw),
             Math.cos(targetYaw - this.yaw)
         );
+        this.yaw += error * turnSpeed;
+        this.body.quaternion.setFromEuler(0, this.yaw, 0);
+    }
+
+    /**
+    * 突進待機状態に更新
+    * @param {void} 
+    * @returns {void}　
+    */
+    startDashWarning(now) {
+        this.isPreparingDash = true;
+        this.dashWarningStartedAt = now;
+        this.mesh.visible = true;
+    }
+
+    /**
+    * 突進待機状態中の点滅アニメーション
+    * @param {number} now - 現在の時間（ミリ秒）
+    * @returns {void}　
+    */
+    updateDashWarning(now) {
+        // BLINK_INTERVALごとにメッシュの表示/非表示を切り替える
+        const elapsed = now - this.dashWarningStartedAt;
+        const blinkCount = Math.floor(elapsed / Cube.DASH_BLINK_INTERVAL);
+        this.mesh.visible = blinkCount % 2 === 0;
+    }
+
+    
+    /**
+    * 突進待機状態を解除
+    * @param {void} 
+    * @returns {void}　
+    */
+    finishDashWarning() {
+        this.isPreparingDash = false; // 突進待機状態を解除
+        this.mesh.visible = true;     // メッシュを表示
+    }
+
+    /**
+    * ターゲットを追跡
+    * @param {Ball} target - ターゲット(操作対象のボール)
+    * @returns {void}　
+    */
+    chase(target) {
+
+        // 姿勢制御
         const difficultyName = DifficultyNames[this.difficulty];
-        this.yaw += error * Cube.TURN_SPEED[difficultyName];
+        const turnSpeed = Cube.TURN_SPEED[difficultyName];
+        this.turnTowardTarget(target, turnSpeed);
 
-        this.body.quaternion.setFromEuler(
-            0,
-            this.yaw,
-            0
-        );
-
-        const distance = Math.sqrt(dx * dx + dz * dz);
-
+        // 追跡
         const chaseForce = Cube.CHACE_FORCE[difficultyName];
-        
         const fx = Math.sin(this.yaw) * chaseForce;
         const fz = Math.cos(this.yaw) * chaseForce;
-
         const forceVector = new CANNON.Vec3(fx, 0, fz);
         this.applyForce(forceVector);
     }
 
 
-    dash(target){
-
-
-        const targetPos = this.getTargetPosition(target);
-
-        const cp = this.body.position;
-        const dx = targetPos.x - cp.x;
-        const dz = targetPos.z - cp.z;
-
-        const targetYaw = Math.atan2(dx, dz);
-        const error = Math.atan2(
-            Math.sin(targetYaw - this.yaw),
-            Math.cos(targetYaw - this.yaw)
-        );
+    /**
+    * 突進
+    * @param {void} 
+    * @returns {void}　
+    */
+    dash(){
         const difficultyName = DifficultyNames[this.difficulty];
-        this.yaw += error * Cube.TURN_SPEED[difficultyName];
-
-        this.body.quaternion.setFromEuler(
-            0,
-            this.yaw,
-            0
-        );
-
-        const distance = Math.sqrt(dx * dx + dz * dz);
-        
         const dashForce = Cube.DASH_FORCE[difficultyName];
         
         const fx = Math.sin(this.yaw) * dashForce;
@@ -248,9 +337,7 @@ export class Cube extends DynamicObject {
         const force = new CANNON.Vec3(fx, 0, fz);
 
         this.applyImpulse(force);
-
     }
-
 
 
     updateWeakFace(newWeakFace) {
