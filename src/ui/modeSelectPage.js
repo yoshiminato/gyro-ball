@@ -190,10 +190,10 @@ export function showModeSelectPage() {
     const easyBtns = document.querySelectorAll('.easy-btn');
     const mediumBtns = document.querySelectorAll('.medium-btn');
     const hardBtns = document.querySelectorAll('.hard-btn'); 
-    tutorialBtns.forEach(btn => btn.textContent = 'Tutorial');
-    easyBtns.forEach(btn => btn.textContent = 'Easy');
-    mediumBtns.forEach(btn => btn.textContent = 'Medium');
-    hardBtns.forEach(btn => btn.textContent = 'Hard');
+    tutorialBtns.forEach(btn => btn.textContent = 'チュートリアル');
+    easyBtns.forEach(btn => btn.textContent = 'かんたん');
+    mediumBtns.forEach(btn => btn.textContent = 'ふつう');
+    hardBtns.forEach(btn => btn.textContent = 'むずかしい');
 
     window.addEventListener('game-start', () => {
         // ゲーム開始時にモード選択画面を非表示にする
@@ -253,19 +253,25 @@ function injectModeSelectStyles() {
         .opponent-cards-container {
             width: min(960px, 100%);
             display: flex;
-            flex-wrap: wrap;
+            /* 画面比率にかかわらず、CubeとSnakeは常に横に並べる */
+            flex-wrap: nowrap;
             justify-content: center;
-            gap: 24px;
+            align-items: stretch;
+            gap: clamp(8px, 2.5vw, 24px);
         }
 
         .opponent-container {
-            width: min(420px, 100%);
+            /* 2枚が親要素の幅を均等に分け合う */
+            flex: 1 1 0;
+            width: auto;
+            min-width: 0;
+            max-width: 420px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 18px;
-            padding: 24px 20px;
-            border-radius: 24px;
+            gap: clamp(10px, 2vw, 18px);
+            padding: clamp(10px, 2.5vw, 24px) clamp(8px, 2vw, 20px);
+            border-radius: clamp(14px, 2.5vw, 24px);
             background: rgba(10, 18, 34, 0.78);
             border: 2px solid rgba(255, 255, 255, 0.14);
             box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
@@ -305,7 +311,8 @@ function injectModeSelectStyles() {
         .difficulty-select-ui-wrapper {
             width: 100%;
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            /* 難易度は各カード内で縦に並べる */
+            grid-template-columns: 1fr;
             gap: 12px;
         }
 
@@ -339,15 +346,26 @@ function injectModeSelectStyles() {
         @media (max-width: 768px) {
             #mode-select-overlay {
                 justify-content: flex-start;
-                padding-top: 28px;
+                gap: 16px;
+                padding: 24px 10px;
             }
 
             .opponent-container {
-                padding: 18px 16px;
+                padding: 12px 8px;
             }
 
             .difficulty-select-ui-wrapper {
                 grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .difficulty-btn {
+                padding: 9px 6px;
+                font-size: clamp(12px, 3.5vw, 15px);
+            }
+
+            .opponent-image-frame {
+                padding: 8px;
             }
         }
     `;
