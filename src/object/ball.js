@@ -14,9 +14,15 @@ export class Ball extends DynamicObject{
     static JUMP_FORCE = 50;
 
     initialPosition = { x: 0, y: Ball.BALL_R + 1, z: 0 };
+    initialHeading = 0;
 
     constructor(){ 
         super();
+
+        // チュートリアルの説明中に操作を止めるためのフラグ
+        this.inputEnabled = true;
+        // チュートリアル側で、実際にジャンプできたことを判定するための回数
+        this.jumpCount = 0;
 
         // ボール生成(物理エンジン側)
         this.body = createBallBody(Ball.BALL_R);
@@ -29,7 +35,7 @@ export class Ball extends DynamicObject{
 
     
     resetHeading(){
-        this.heading = 0;
+        this.heading = this.initialHeading;
     }
 
     // ボールの位置を初期位置にリセット
@@ -44,16 +50,38 @@ export class Ball extends DynamicObject{
         this.body.quaternion.set(0, 0, 0, 1);
     }
 
+    reset() {
+        this.resetPosition();
+        this.resetHeading();
+    }
+
+    // チュートリアルの進行に応じてユーザー入力を有効・無効にする
+    setInputEnabled(enabled) {
+        this.inputEnabled = enabled;
+
+        if (!enabled && this.body) {
+            this.body.velocity.x = 0;
+            this.body.velocity.z = 0;
+            this.body.angularVelocity.set(0, 0, 0);
+        }
+    }
+
     // ジャンプ
     triggerJump() {
+        if (!this.inputEnabled) return;
         if(!this.canJump) return;
         const forceVector = new CANNON.Vec3(0, Ball.JUMP_FORCE, 0);
         this.applyImpulse(forceVector);
         this.canJump = false;
+        this.jumpCount++;
     }
 
     // 入力に応じて力を計算
     calculateForce(dt){
+        if (!this.inputEnabled) {
+            return new CANNON.Vec3(0, 0, 0);
+        }
+
         let force;
         if (gyroEnabled)           
             force = calculateForceFromGyro(this, dt);

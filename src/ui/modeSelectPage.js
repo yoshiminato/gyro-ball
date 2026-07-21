@@ -147,7 +147,6 @@ export function showModeSelectPage() {
     gameStartBtn.textContent = 'ゲーム開始';
 
     gameStartBtn.addEventListener('click', () => {
-        console.log(`Selected opponent: ${opponent}, Selected Difficulty: ${difficulty}`);
         // Tutorial固有の処理は、今後game-start側でDifficulty.TUTORIALを判定して追加する
         const gameStartEvent = new CustomEvent('game-start');
         window.dispatchEvent(gameStartEvent);

@@ -3,7 +3,7 @@ import { destroyPhysics,  initPhysics, world }  from './core/physics.js';
 import { Ball } from './object/ball.js';
 import { Cube } from './object/cube.js';
 import { Snake } from './object/snake.js';
-import { Opponent, Difficulty } from './constants.js';
+import { Opponent, Difficulty, GameState } from './constants.js';
 
 let started = false;
 let destroyGameFlg = false;
@@ -15,17 +15,15 @@ let snake = null;
 let opponent = null;
 let difficulty = null;
 
-export { started, destroyGameFlg, ball, cube, snake, opponent, difficulty };
+let gameState = GameState.IDLE;
+
+export { started, destroyGameFlg, ball, cube, snake, opponent, difficulty, gameState };
 
 // ゲームオーバー時には started を false に設定(アニメーションの停止)
-window.addEventListener('game-over', requestDestroyGame);
-window.addEventListener('game-clear', requestDestroyGame);
+window.addEventListener('game-over', hundleGameOver);
+window.addEventListener('game-clear', handleGameClear);
+window.addEventListener('back-to-mode-select', returnToModeSelect);
 
-// ゲームのリセット(レンダラと物理演算器の削除)を要求
-function requestDestroyGame() {
-    started = false;
-    destroyGameFlg = true;
-}
 
 // ゲームの難易度と敵を更新
 export function updateOpponentAndDifficulty(newOpponent, newDifficulty) {
@@ -33,9 +31,32 @@ export function updateOpponentAndDifficulty(newOpponent, newDifficulty) {
     difficulty = newDifficulty;
 }
 
+function hundleGameOver() {
+    if (gameState !== GameState.PLAYING) return;
+
+    gameState = GameState.GAME_OVER;
+    started = false;
+}
+
+function handleGameClear() {
+    if (gameState !== GameState.PLAYING) return;
+
+    gameState = GameState.GAME_CLEAR;
+    started = false;
+}
+
+function restartGame() {
+    destroyGame();
+    startGame();
+}
+
+function returnToModeSelect() {
+    destroyGame();
+    gameState = GameState.IDLE;
+}
+
 // 物理演算器とレンダラを削除 & 各種変数を初期化
 export function destroyGame() {
-    if(!destroyGameFlg) return;
     destroyGameFlg = false;
     try{
         destroyRenderer();
@@ -55,12 +76,18 @@ export function destroyGame() {
 /// 物理演算器とレンダラを初期化
 export function startGame(){
     started = true;
+    gameState = GameState.PLAYING;
     initRenderer();
     initPhysics();
 
     console.log(`Starting game with difficulty: ${difficulty}, opponent: ${opponent}`);
 
     ball = new Ball();
+
+    // チュートリアルの説明中は、OKが押されるまで操作を受け付けない
+    if (Number(difficulty) === Difficulty.TUTORIAL) {
+        ball.setInputEnabled(false);
+    }
 
     switch(Number(opponent)){
         
@@ -94,6 +121,8 @@ function judgeCanJump(world){
 export function updateGameState(dt) {
     if (!started) return;
 
+    if (gameState !== GameState.PLAYING) return;
+
     // ジャンプ可能判定
     ball.canJump = judgeCanJump.call(ball, world);
     ball.update(dt);
@@ -110,5 +139,4 @@ export function updateGameState(dt) {
     world.step(1 / 60, dt, 3);
 
 }
-
 

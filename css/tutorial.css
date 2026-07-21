@@ -1,0 +1,50 @@
+.game-tutorial-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.65);
+}
+
+.game-tutorial-modal {
+    width: min(480px, 100%);
+    box-sizing: border-box;
+    padding: 28px;
+    color: #fff;
+    text-align: center;
+    border: 2px solid #66dfff;
+    border-radius: 14px;
+    background: rgba(12, 20, 42, 0.96);
+    box-shadow: 0 0 30px rgba(65, 190, 255, 0.35);
+}
+
+.game-tutorial-title {
+    margin: 0 0 18px;
+    color: #7df;
+    font-size: 26px;
+}
+
+.game-tutorial-description {
+    margin: 0 0 24px;
+    font-size: 17px;
+    line-height: 1.8;
+}
+
+.game-tutorial-button {
+    min-width: 140px;
+    padding: 11px 28px;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #1a8fff, #7b2fff);
+}
+
+.game-tutorial-button:active {
+    transform: scale(0.96);
+}

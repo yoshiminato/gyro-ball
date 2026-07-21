@@ -47,6 +47,13 @@ window.addEventListener('game-start', init);
 function init(e) {
 
     try{
+        destroyGame();
+    }
+    catch(err){
+        console.warn('ゲーム破棄失敗')
+        console.log(err)
+    }
+    try{
         startGame();
     }
     catch(err){
@@ -76,7 +83,7 @@ function setupEvents() {
 // メインループ
 function animate() {
     requestAnimationFrame(animate);
-    if(destroyGameFlg) destroyGame();
+    // if(destroyGameFlg) destroyGame();
     if (!started) return;
     const now = performance.now();
     const dt = Math.min((now - lastTime) / 1000, 0.05);

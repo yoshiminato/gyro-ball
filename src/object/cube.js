@@ -3,7 +3,7 @@ import { createCubeBody } from '../core/physics.js';
 import { createCubeMesh } from '../core/renderer.js';
 import { DynamicObject } from './dynamicObject.js';
 import { showHpBar, updateHpBar } from '../ui/hpBar.js';
-import { destroyGame } from '../gameController.js';
+import { CubeTutorial } from '../tutorial/cubeTutorial.js';
 
 
 export class Cube extends DynamicObject {
@@ -12,6 +12,7 @@ export class Cube extends DynamicObject {
     static WEAK_FACE_DAMAGE_COEF = 3.0;  // 弱点面のダメージ倍率
 
     static TURN_SPEED = {                // 平時ターン速度
+        'Tutorial': 0.009,
         'Easy': 0.007,
         'Normal': 0.009,
         'Hard': 0.015
@@ -22,6 +23,7 @@ export class Cube extends DynamicObject {
         'Hard': 0.2
     }
     static CHACE_FORCE = {               // 追跡時に印加する力
+        'Tutorial': 55,
         'Easy': 53,
         'Normal': 55,
         'Hard': 60
@@ -54,7 +56,7 @@ export class Cube extends DynamicObject {
         NONE: -1
     };
 
-    static initialPosition = { x: 0, z: -6, h: 3, w: 3, d: 3 }; // 初期位置とサイズ
+    static initialPosition = { x: 0, z: -10, h: 3, w: 3, d: 3 }; // 初期位置とサイズ
 
     constructor(difficulty) {
         const { x, z, h, w, d } = Cube.initialPosition;
@@ -91,10 +93,18 @@ export class Cube extends DynamicObject {
         }
 
         this.hp = this.maxHp;
+        this.tutorial = null;
 
-        showHpBar();
+        if (this.difficulty !== Difficulty.TUTORIAL) {
+            showHpBar();
+        }
 
         this.body.addEventListener('collide', (e) => this.hundleDamageEvent(e));
+
+        // Tutorial選択時だけ、Cube専用チュートリアルを開始する
+        if (this.difficulty === Difficulty.TUTORIAL) {
+            this.tutorial = new CubeTutorial(this);
+        }
     }
 
     /**
@@ -103,6 +113,8 @@ export class Cube extends DynamicObject {
     * @returns {void}　
     */
     hundleDamageEvent(event) {
+
+        if (this.isBattleFinished || this.tutorial?.phase === 'completed') return;
 
         // 衝突イベントからダメージを計算
         const damage = this.calculateDamage(event);
@@ -115,6 +127,9 @@ export class Cube extends DynamicObject {
         this.applyDamage(damage);
         const restHpRate = this.hp / this.maxHp;
         updateHpBar(restHpRate * 100);
+        this.tutorial?.notifyDamage(damage, {
+            isWeakPoint: this.lastHitWasWeakPoint
+        });
 
     }
 
@@ -136,8 +151,14 @@ export class Cube extends DynamicObject {
         // z前後(マイナス：前面、プラス：背面)
         // x左右(マイナス：右面、プラス：左面)
         // y上下(マイナス：下面、プラス：上面) 
-        // cubeの正面に衝突した場合
-        if(localNormal.z < - 0.1){
+        // Cubeの赤い正面は攻撃部位
+        if (localNormal.z < -0.1) {
+            // チュートリアル中は終了させず、危険部位の警告を表示する
+            if (this.difficulty === Difficulty.TUTORIAL) {
+                this.tutorial?.notifyDangerCollision();
+                return null;
+            }
+
             // ゲームオーバー
             const gameOverEvent = new CustomEvent('game-over');
             console.log('Game Over! Cube hit on the front face.');
@@ -145,26 +166,29 @@ export class Cube extends DynamicObject {
             return null;
         }
 
+        this.lastHitWasWeakPoint = false;
+
         switch (this.weakFace) {
             case Cube.FACE.BACK:
-                if (localNormal.z > 0.1) return Cube.WEAK_FACE_DAMAGE_COEF * impactSpeed;
-                else return impactSpeed;
+                this.lastHitWasWeakPoint = localNormal.z > 0.1;
+                break;
         
             case Cube.FACE.LEFT:
-                if (localNormal.x > 0.1) return Cube.WEAK_FACE_DAMAGE_COEF * impactSpeed;
-                else return impactSpeed;
+                this.lastHitWasWeakPoint = localNormal.x > 0.1;
+                break;
             
             case Cube.FACE.RIGHT:
-                if (localNormal.x < -0.1) return Cube.WEAK_FACE_DAMAGE_COEF * impactSpeed;
-                else return impactSpeed;
+                this.lastHitWasWeakPoint = localNormal.x < -0.1;
+                break;
           
             case Cube.FACE.TOP:
-                if (localNormal.y > 0.1) return Cube.WEAK_FACE_DAMAGE_COEF * impactSpeed;
-                else return impactSpeed;
-            
-            default:
-                return impactSpeed;
+                this.lastHitWasWeakPoint = localNormal.y > 0.1;
+                break;
         }
+
+        return this.lastHitWasWeakPoint
+            ? Cube.WEAK_FACE_DAMAGE_COEF * impactSpeed
+            : impactSpeed;
     }
 
     /**
@@ -173,9 +197,12 @@ export class Cube extends DynamicObject {
     * @returns {void}　
     */
     applyDamage(damage) {
-        this.hp -= damage;
+        this.hp = Math.max(0, this.hp - damage);
+
+        // チュートリアルの完了条件はTutorialController側で管理する
+        if (this.difficulty === Difficulty.TUTORIAL) return;
+
         if (this.hp <= 0) {
-            this.hp = 0;
             // cubeの破壊処理? & 勝利イベント
             const gameClearEvent = new CustomEvent('game-clear');
             window.dispatchEvent(gameClearEvent);
@@ -189,6 +216,13 @@ export class Cube extends DynamicObject {
     * @returns {void}　
     */
     update(target) {
+        // チュートリアル中は通常の追跡・突進を停止する
+        if (this.tutorial) {
+            this.tutorial.update(target);
+            if (this.tutorial.enemyVisible) this.updateVisuals();
+            return;
+        }
+
         // 物理演算
         this.updateBehavior(target);
         // ビジュアル更新
@@ -284,10 +318,13 @@ export class Cube extends DynamicObject {
     * @returns {void}　
     */
     updateDashWarning(now) {
+
         // BLINK_INTERVALごとにメッシュの表示/非表示を切り替える
         const elapsed = now - this.dashWarningStartedAt;
         const blinkCount = Math.floor(elapsed / Cube.DASH_BLINK_INTERVAL);
         this.mesh.visible = blinkCount % 2 === 0;
+
+        console.log(blinkCount % 2 === 0 ? 'Cube visible' : 'Cube invisible');
     }
 
     

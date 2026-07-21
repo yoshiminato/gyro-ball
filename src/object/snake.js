@@ -1,17 +1,19 @@
 import { DynamicObject } from "./dynamicObject.js";
-import { createSnakeBody } from "../core/physics.js";
+import { createSnakeBody, world } from "../core/physics.js";
 import {
     createSnakeMesh,
     createLightRayMesh
 } from "../core/renderer.js";
-import { Difficulty, DifficultyNames } from "../constants.js";
+import { Difficulty, DifficultyNames, FIELD_RADIUS } from "../constants.js";
 import { showHpBar, updateHpBar } from "../ui/hpBar.js";
+import { SnakeTutorial } from "../tutorial/snakeTutorial.js";
 
 export class Snake extends DynamicObject {
 
     static id = 0;                        // 蛇個体ごとの識別子
     static MASS = 2;                      // 物理ボディ全体の質量
     static CHASE_FORCE = {                // 難易度ごとの追跡時に与える力
+        'Tutorial': 77,
         'Easy': 70,
         'Normal': 77,
         'Hard': 85
@@ -26,11 +28,13 @@ export class Snake extends DynamicObject {
         'Hard': 1000
     };
     static LIGHT_RAY_SPEED = {            // 光線が伸びる速さ
+        'Tutorial': 50,
         'Easy': 70,
         'Normal': 110,
         'Hard': 150
     };
     static LIGHT_RAY_RADIUS = 0.15;       // 光線の半径（描画・当たり判定共通）
+    static LIGHT_RAY_MAX_DISTANCE = FIELD_RADIUS * 2.5;
     static LIGHT_RAY_COOLDOWN = 4000;     // 光線発射後の再待機時間
     // 光線が目標地点へ到達した後、その場に表示しておく時間
     static LIGHT_RAY_DURATION = 300;
@@ -41,7 +45,7 @@ export class Snake extends DynamicObject {
     static HEAD_CENTER_APPROACH_LERP = 0.12;   // 頭のXZ寄せを補間する係数
 
 
-    static initialPosition = { x: 0, z: -6 }; // 初期配置
+    static initialPosition = { x: 0, z: -10 }; // 初期配置
 
     constructor(difficulty) {
 
@@ -80,6 +84,8 @@ export class Snake extends DynamicObject {
         this.lightRayStart = new THREE.Vector3();
         this.lightRayTarget = new THREE.Vector3();
         this.lightRayCurrentEnd = new THREE.Vector3();
+        this.lightRayDesiredEnd = new THREE.Vector3();
+        this.lightRayHitPoint = new THREE.Vector3();
         this.rayToBall = new THREE.Vector3();
         this.rayClosestPoint = new THREE.Vector3();
         this.ballPosition = new THREE.Vector3();
@@ -111,6 +117,7 @@ export class Snake extends DynamicObject {
         this.hp = this.maxHp;
         this.isBattleFinished = false; // 勝敗が確定したかどうか
         this.faceYaw = 0;              // 頭の向き
+        this.tutorial = null;
 
         // 追跡時の蛇行運動に使用する状態
         this.chaseSwayPhase = 0;
@@ -123,10 +130,13 @@ export class Snake extends DynamicObject {
         this.lightRayWarningStartedAt = 0;
         this.lightRayStartedAt = 0;
         this.lightRayTravelDuration = 0;
+        this.lightRayStoppedAt = 0;
         this.headVisualLift = 0;
         this.headCenterApproach = 0;
 
-        showHpBar();
+        if (this.difficulty !== Difficulty.TUTORIAL) {
+            showHpBar();
+        }
 
         // 各セグメントに衝突イベントを登録する
         this.bodies.forEach((body, segmentIndex) => {
@@ -135,6 +145,11 @@ export class Snake extends DynamicObject {
                 (event) => this.handleCollisionEvent(event, segmentIndex)
             );
         });
+
+        // Tutorial選択時だけ、Snake専用チュートリアルを開始する
+        if (this.difficulty === Difficulty.TUTORIAL) {
+            this.tutorial = new SnakeTutorial(this);
+        }
 
     }
 
@@ -147,8 +162,14 @@ export class Snake extends DynamicObject {
     handleCollisionEvent(event, segmentIndex) {
         if (this.isBattleFinished || event.body.name !== 'ball') return;
 
-        // 頭は攻撃判定。ボールが触れた時点でゲームオーバーにする
+        // 赤い頭は攻撃部位。通常ゲームでは触れた時点でゲームオーバー
         if (segmentIndex === 0) {
+            // チュートリアル中は終了させず、危険部位の警告を表示する
+            if (this.difficulty === Difficulty.TUTORIAL) {
+                this.tutorial?.notifyDangerCollision();
+                return;
+            }
+
             this.isBattleFinished = true;
             const gameOverEvent = new CustomEvent('game-over');
             window.dispatchEvent(gameOverEvent);
@@ -159,7 +180,9 @@ export class Snake extends DynamicObject {
             event.contact.getImpactVelocityAlongNormal()
         );
 
-        if (segmentIndex === this.weakSegmentIndex) {
+        const isWeakPoint = segmentIndex === this.weakSegmentIndex;
+
+        if (isWeakPoint) {
             damage *= Snake.WEAK_SEGMENT_DAMAGE_COEF;
         }
 
@@ -167,6 +190,7 @@ export class Snake extends DynamicObject {
 
         this.applyDamage(damage);
         updateHpBar((this.hp / this.maxHp) * 100);
+        this.tutorial?.notifyDamage(damage, { isWeakPoint });
     }
 
     /**
@@ -176,6 +200,9 @@ export class Snake extends DynamicObject {
     */
     applyDamage(damage) {
         this.hp = Math.max(0, this.hp - damage);
+
+        // チュートリアルの完了条件はTutorialController側で管理する
+        if (this.difficulty === Difficulty.TUTORIAL) return;
 
         if (this.hp > 0) return;
 
@@ -194,12 +221,22 @@ export class Snake extends DynamicObject {
     update(target){
         const now = performance.now();
 
+        // チュートリアル中は通常の追跡・光線攻撃を停止する
+        if (this.tutorial) {
+            this.tutorial.update(target);
+            if (this.tutorial.enemyVisible) this.updateVisuals();
+            return;
+        }
+
         // 物理演算
         this.updateBehavior(target, now);
         // ビジュアル更新
         this.updateVisuals();
         // 発射後の一定時間だけ光線を表示
-        this.updateLightRay(now, target);
+        if (this.updateLightRay(now, target)) {
+            this.isBattleFinished = true;
+            window.dispatchEvent(new CustomEvent('game-over'));
+        }
     }
 
     /**
@@ -298,7 +335,7 @@ export class Snake extends DynamicObject {
     }
 
     /**
-    * 光線発射時の始点と終点を記録し、到達時間を計算する
+    * 光線発射時の始点と進行方向を記録する
     * @param {Ball} target - 操作対象のボール
     * @param {number} now - 現在時刻
     * @returns {void}
@@ -306,33 +343,44 @@ export class Snake extends DynamicObject {
     fireLightRay(target, now) {
         const targetPosition = target.body.position;
 
-        // 発射開始時点の頭とボールの位置を保存する
+        // ボールの現在位置は進行方向を決めるためだけに使用する。
+        // 終点はフィールドを横断できる十分遠い位置に置く。
         this.lightRayStart.copy(this.meshes[0].position);
         this.lightRayTarget.set(
             targetPosition.x,
             targetPosition.y,
             targetPosition.z
         );
+        this.rayDirection
+            .subVectors(this.lightRayTarget, this.lightRayStart)
+            .normalize();
+        this.lightRayTarget
+            .copy(this.rayDirection)
+            .multiplyScalar(Snake.LIGHT_RAY_MAX_DISTANCE)
+            .add(this.lightRayStart);
 
         const difficultyName = DifficultyNames[this.difficulty];
         const lightRaySpeed = Snake.LIGHT_RAY_SPEED[difficultyName];
-        const distance = this.lightRayStart.distanceTo(this.lightRayTarget);
 
-        this.lightRayTravelDuration = distance / lightRaySpeed * 1000;
+        this.lightRayTravelDuration =
+            Snake.LIGHT_RAY_MAX_DISTANCE / lightRaySpeed * 1000;
         this.lightRayStartedAt = now;
+        this.lightRayStoppedAt = 0;
         this.isFiringLightRay = true;
+
+        console.log(`travelDuration: ${this.lightRayTravelDuration}ms`);
     }
 
     /**
     * 光線メッシュの見た目を更新する
     * @param {number} now - 現在時刻
     * @param {Ball} target - 当たり判定を行うボール
-    * @returns {void}
+    * @returns {boolean} ボールに命中した場合はtrue
     */
     updateLightRay(now, target) {
         if (!this.isFiringLightRay) {
             this.lightRayMesh.visible = false;
-            return;
+            return false;
         }
 
         const elapsed = now - this.lightRayStartedAt;
@@ -340,28 +388,85 @@ export class Snake extends DynamicObject {
             ? Math.min(elapsed / this.lightRayTravelDuration, 1)
             : 1;
 
-        // 発射地点から、記録したボール位置へ向かって終点を伸ばす
-        this.lightRayCurrentEnd.lerpVectors(
+        // 発射方向へ光線を伸ばし、物理世界の最初の衝突点で停止する
+        this.lightRayDesiredEnd.lerpVectors(
             this.lightRayStart,
             this.lightRayTarget,
             progress
         );
+        if (!this.lightRayStoppedAt) {
+            const hitPoint = this.findLightRayCollision(
+                this.lightRayDesiredEnd,
+                target
+            );
+
+            if (hitPoint) {
+                this.lightRayCurrentEnd.copy(hitPoint);
+                this.lightRayStoppedAt = now;
+            } else {
+                this.lightRayCurrentEnd.copy(this.lightRayDesiredEnd);
+                if (progress >= 1) this.lightRayStoppedAt = now;
+            }
+        }
         this.emitLightRay(this.lightRayStart, this.lightRayCurrentEnd);
 
-        // 現在表示されている光線にボールが触れたらゲームオーバーにする
+        // 命中後の扱いは通常戦闘とチュートリアルで呼び出し側が決める
         if (this.isLightRayHittingTarget(target)) {
-            this.isBattleFinished = true;
-            window.dispatchEvent(new CustomEvent('game-over'));
-            return;
+            this.isFiringLightRay = false;
+            this.lightRayMesh.visible = false;
+            return true;
         }
 
-        const displayDuration =
-            this.lightRayTravelDuration + Snake.LIGHT_RAY_DURATION;
-
-        if (elapsed >= displayDuration) {
+        if (
+            this.lightRayStoppedAt
+            && now - this.lightRayStoppedAt >= Snake.LIGHT_RAY_DURATION
+        ) {
             this.isFiringLightRay = false;
             this.lightRayMesh.visible = false;
         }
+
+        return false;
+    }
+
+    /**
+    * 光線の始点から現在の伸長予定位置までで最初に衝突する地点を返す
+    * @param {THREE.Vector3} endPosition - 現在フレームの伸長予定位置
+    * @param {Ball} target - ボール（既存の線分判定で別途処理する）
+    * @returns {THREE.Vector3|null} 衝突地点。衝突しない場合はnull
+    */
+    findLightRayCollision(endPosition, target) {
+        const from = new CANNON.Vec3(
+            this.lightRayStart.x,
+            this.lightRayStart.y,
+            this.lightRayStart.z
+        );
+        const to = new CANNON.Vec3(
+            endPosition.x,
+            endPosition.y,
+            endPosition.z
+        );
+        let closestDistance = Infinity;
+        let hasHit = false;
+
+        world.raycastAll(from, to, { skipBackfaces: true }, (result) => {
+            // 発射元のSnake自身と、独自判定を持つボールは終点にしない
+            if (
+                this.bodies.includes(result.body)
+                || result.body === target?.body
+            ) return;
+
+            if (result.distance >= closestDistance) return;
+
+            closestDistance = result.distance;
+            this.lightRayHitPoint.set(
+                result.hitPointWorld.x,
+                result.hitPointWorld.y,
+                result.hitPointWorld.z
+            );
+            hasHit = true;
+        });
+
+        return hasHit ? this.lightRayHitPoint : null;
     }
 
     /**

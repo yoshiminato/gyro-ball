@@ -17,5 +17,12 @@ export const DifficultyNames = {
     [Difficulty.HARD]: 'Hard',
 };
 
+export const GameState = {
+    IDLE: 0,
+    PLAYING: 1,
+    GAME_OVER: 2,
+    GAME_CLEAR: 3,
+}
+
 // 旧正方形フィールドの一辺（50）を、新しい円形フィールドの半径にする
 export const FIELD_RADIUS = 50;
