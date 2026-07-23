@@ -11,11 +11,11 @@ window.addEventListener('title-exit', () => {
 export function showTitlePage() {
 
     // 背景画像の設定
-    document.body.style.backgroundImage = "url('asset/img/gameView.png')";
-    document.body.style.backgroundPosition = "center center";
-    document.body.style.backgroundRepeat = "no-repeat";
-    document.body.style.backgroundSize = "cover";
-    document.body.style.backgroundAttachment = "fixed";
+    // document.body.style.backgroundImage = "url('asset/img/gameView.png')";
+    // document.body.style.backgroundPosition = "center center";
+    // document.body.style.backgroundRepeat = "no-repeat";
+    // document.body.style.backgroundSize = "cover";
+    // document.body.style.backgroundAttachment = "fixed";
 
     // wrapperの作成
     const startOverlay = document.createElement('div');

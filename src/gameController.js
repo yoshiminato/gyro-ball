@@ -4,6 +4,7 @@ import { Ball } from './object/ball.js';
 import { Cube } from './object/cube.js';
 import { Snake } from './object/snake.js';
 import { Opponent, Difficulty, GameState } from './constants.js';
+import { pauseGameClock, resetGameClock, resumeGameClock } from './core/gameClock.js';
 
 let started = false;
 let destroyGameFlg = false;
@@ -16,6 +17,7 @@ let opponent = null;
 let difficulty = null;
 
 let gameState = GameState.IDLE;
+let inputEnabledBeforePause = true;
 
 export { started, destroyGameFlg, ball, cube, snake, opponent, difficulty, gameState };
 
@@ -29,6 +31,25 @@ window.addEventListener('back-to-mode-select', returnToModeSelect);
 export function updateOpponentAndDifficulty(newOpponent, newDifficulty) {
     opponent = newOpponent;
     difficulty = newDifficulty;
+}
+
+export function pauseGame() {
+    if (!started || gameState !== GameState.PLAYING) return false;
+
+    gameState = GameState.PAUSED;
+    inputEnabledBeforePause = ball?.inputEnabled ?? true;
+    ball?.setInputEnabled(false);
+    pauseGameClock();
+    return true;
+}
+
+export function resumeGame() {
+    if (gameState !== GameState.PAUSED) return false;
+
+    gameState = GameState.PLAYING;
+    resumeGameClock();
+    ball?.setInputEnabled(inputEnabledBeforePause);
+    return true;
 }
 
 function hundleGameOver() {
@@ -57,6 +78,9 @@ function returnToModeSelect() {
 
 // 物理演算器とレンダラを削除 & 各種変数を初期化
 export function destroyGame() {
+    resetGameClock();
+    cube?.tutorial?.removeOverlay();
+    snake?.tutorial?.removeOverlay();
     destroyGameFlg = false;
     try{
         destroyRenderer();
@@ -75,6 +99,7 @@ export function destroyGame() {
 
 /// 物理演算器とレンダラを初期化
 export function startGame(){
+    resetGameClock();
     started = true;
     gameState = GameState.PLAYING;
     initRenderer();

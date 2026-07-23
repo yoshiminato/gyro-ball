@@ -28,6 +28,7 @@ import { Ball } from './object/ball.js';
 import { Cube } from './object/cube.js';
 
 import { Snake } from './object/snake.js';
+import { registerPauseUi } from './ui/pausePage.js';
 
 
 const CAM_DIST = 14;
@@ -39,6 +40,7 @@ const camTarget = new THREE.Vector3();
 
 
 registerRouterEvents();
+registerPauseUi();
 animate();
 
 window.addEventListener('game-start', init);

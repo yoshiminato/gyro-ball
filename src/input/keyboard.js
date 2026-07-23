@@ -4,7 +4,7 @@ const keys = {};
 let currentBall = null;
 let registered = false;
 
-const FORCE_COEF = 0.75;
+const FORCE_COEF = 1.5;
 
 export function registerKeyEvent(ball) {
     currentBall = ball;
@@ -18,7 +18,7 @@ export function registerKeyEvent(ball) {
 function handleKeyDown(e) {
     keys[e.code] = true;
     if (e.code === 'Space') currentBall?.triggerJump();
-    if (e.code === 'KeyR') currentBall?.resetPosition();
+    // if (e.code === 'KeyR') currentBall?.resetPosition();
 }
 
 function handleKeyUp(e) {

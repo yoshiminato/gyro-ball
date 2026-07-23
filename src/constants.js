@@ -20,8 +20,9 @@ export const DifficultyNames = {
 export const GameState = {
     IDLE: 0,
     PLAYING: 1,
-    GAME_OVER: 2,
-    GAME_CLEAR: 3,
+    PAUSED: 2,
+    GAME_OVER: 3,
+    GAME_CLEAR: 4,
 }
 
 // 旧正方形フィールドの一辺（50）を、新しい円形フィールドの半径にする

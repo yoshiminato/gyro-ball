@@ -1,5 +1,6 @@
 import { showHpBar, updateHpBar } from '../ui/hpBar.js';
 import { isMobileDevice } from '../util.js';
+import { getGameTime } from '../core/gameClock.js';
 
 /**
  * CubeとSnakeで共通するチュートリアルの進行を管理する。
@@ -261,11 +262,11 @@ export class TutorialController {
 
     beginEvadePractice() {
         this.enemy.isBattleFinished = false;
-        this.evadeStartedAt = performance.now();
+        this.evadeStartedAt = getGameTime();
     }
 
     updateEvadePractice(ball) {
-        const now = performance.now();
+        const now = getGameTime();
 
         // 派生クラス側でCube/Snakeそれぞれのchaseだけを実行する
         this.chaseTarget(ball, now);
@@ -368,7 +369,7 @@ export class TutorialController {
             () => {
                 this.ball.reset();
                 this.resetEnemyPosition();
-                this.evadeStartedAt = performance.now();
+                this.evadeStartedAt = getGameTime();
                 this.dangerNoticeOpen = false;
                 this.ball.setInputEnabled(true);
             }

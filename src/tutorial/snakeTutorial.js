@@ -1,5 +1,6 @@
 import { world } from '../core/physics.js';
 import { TutorialController } from './tutorialController.js';
+import { getGameTime } from '../core/gameClock.js';
 
 /** Snake用チュートリアル。練習開始までは全セグメントを物理世界から外す。 */
 export class SnakeTutorial extends TutorialController {
@@ -105,27 +106,27 @@ export class SnakeTutorial extends TutorialController {
         this.ball.reset();
         this.showStepOverlay(title, description);
         this.showEnemy();
-        const now = performance.now();
+        const now = getGameTime();
         this.waringStartTime = now;
         this.enemy.startLightRayWarning(now);
     }
 
     updateWaitingWarningState(target) {
-        const now = performance.now();
+        const now = getGameTime();
         this.enemy.updateLightRayWarning(now);
         this.enemy.faceTarget(target);
     }
 
     beginWarningState() {
-        this.waringStartTime = performance.now();
+        this.waringStartTime = getGameTime();
         // this.showEnemy();
-        this.enemy.startLightRayWarning(performance.now());
+        this.enemy.startLightRayWarning(getGameTime());
     }
 
     updateWarningState(target) {
-        this.enemy.updateLightRayWarning(performance.now());
+        this.enemy.updateLightRayWarning(getGameTime());
         this.enemy.faceTarget(target);
-        if (performance.now() - this.waringStartTime >= this.warningStateDuration) {
+        if (getGameTime() - this.waringStartTime >= this.warningStateDuration) {
             // this.hideEnemy();
             return true; 
         }
@@ -139,7 +140,7 @@ export class SnakeTutorial extends TutorialController {
     }
 
     beginLightRay() {
-        this.warningStateStartTime = performance.now();
+        this.warningStateStartTime = getGameTime();
         this.enemy.isPreparingLightRay = false;
         this.enemy.isFiringLightRay = false;
         this.enemy.lightRayMesh.visible = false;
@@ -148,13 +149,13 @@ export class SnakeTutorial extends TutorialController {
     }
 
     updateWhileLightRayWaiting(target) {
-        const now = performance.now();
+        const now = getGameTime();
         this.enemy.updateLightRayWarning(now);
         this.enemy.faceTarget(target);
     }
 
     updateLightRay(target) {
-        const now = performance.now();
+        const now = getGameTime();
 
         if (this.enemy.isPreparingLightRay) {
             this.enemy.updateLightRayWarning(now);

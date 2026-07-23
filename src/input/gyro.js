@@ -46,8 +46,8 @@ function saveZeroPoint(e) {
     gyroGamma = e.gamma || 0;
     const beta2zero = gyroBeta - gyroBetaZero;
     const gamma2zero = gyroGamma - gyroGammaZero;
-    document.getElementById('gyro-indicator').textContent =
-        `絶対値:β${e.beta.toFixed(1)}° γ${e.gamma.toFixed(1)}°,ゼロ点: β${gyroBetaZero.toFixed(1)}° γ${gyroGammaZero.toFixed(1)}°, 差分: β${beta2zero.toFixed(1)}° γ${gamma2zero.toFixed(1)}°`;
+    // document.getElementById('gyro-indicator').textContent =
+    //     `絶対値:β${e.beta.toFixed(1)}° γ${e.gamma.toFixed(1)}°,ゼロ点: β${gyroBetaZero.toFixed(1)}° γ${gyroGammaZero.toFixed(1)}°, 差分: β${beta2zero.toFixed(1)}° γ${gamma2zero.toFixed(1)}°`;
     
     if (gyroCalibrated) return;
 

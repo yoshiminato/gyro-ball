@@ -3,11 +3,11 @@ import { opponent, difficulty, updateOpponentAndDifficulty } from '../gameContro
 
 export function showModeSelectPage() {
     // 背景画像の設定
-    document.body.style.backgroundImage = "url('asset/img/gameView.png')";
-    document.body.style.backgroundPosition = "center center";
-    document.body.style.backgroundRepeat = "no-repeat";
-    document.body.style.backgroundSize = "cover";
-    document.body.style.backgroundAttachment = "fixed";
+    // document.body.style.backgroundImage = "url('asset/img/gameView.png')";
+    // document.body.style.backgroundPosition = "center center";
+    // document.body.style.backgroundRepeat = "no-repeat";
+    // document.body.style.backgroundSize = "cover";
+    // document.body.style.backgroundAttachment = "fixed";
 
     // overlayの作成
     const modeSelectOverlay = document.createElement('div');
@@ -67,9 +67,6 @@ export function showModeSelectPage() {
     cubeHardBtn.classList.add('hard-btn');
     cubeHardBtn.dataset.opponent = Opponent.CUBE;
     cubeHardBtn.dataset.difficulty = Difficulty.HARD;
-    
-    
-
 
     /***
      * スネーク
@@ -99,6 +96,7 @@ export function showModeSelectPage() {
     const snakeMediumBtn = document.createElement('button');
     const snakeHardBtn = document.createElement('button');
 
+    // 
     snakeTutorialBtn.className = 'difficulty-btn';
     snakeTutorialBtn.classList.add('tutorial-btn');
     snakeTutorialBtn.dataset.opponent = Opponent.SNAKE;
@@ -116,7 +114,7 @@ export function showModeSelectPage() {
     snakeHardBtn.dataset.opponent = Opponent.SNAKE;
     snakeHardBtn.dataset.difficulty = Difficulty.HARD;
 
-
+    // 
     const difficultyBtns = [
         cubeTutorialBtn,
         cubeEasyBtn,
@@ -128,19 +126,16 @@ export function showModeSelectPage() {
         snakeHardBtn
     ];
 
-
     // 難易度選択のイベント
     cubeTutorialBtn.addEventListener('click', () => updateSelectedElm(cubeTutorialBtn));
-    cubeEasyBtn.addEventListener('click',    () => updateSelectedElm(cubeEasyBtn));
-    cubeMediumBtn.addEventListener('click',  () => updateSelectedElm(cubeMediumBtn));
-    cubeHardBtn.addEventListener('click',    () => updateSelectedElm(cubeHardBtn));
-    snakeTutorialBtn.addEventListener('click', () => updateSelectedElm(snakeTutorialBtn));
-    snakeEasyBtn.addEventListener('click',   () => updateSelectedElm(snakeEasyBtn));
-    snakeMediumBtn.addEventListener('click', () => updateSelectedElm(snakeMediumBtn));
-    snakeHardBtn.addEventListener('click',   () => updateSelectedElm(snakeHardBtn));
-
-
-
+    cubeEasyBtn.addEventListener('click',     () => updateSelectedElm(cubeEasyBtn));
+    cubeMediumBtn.addEventListener('click',   () => updateSelectedElm(cubeMediumBtn));
+    cubeHardBtn.addEventListener('click',     () => updateSelectedElm(cubeHardBtn));
+    snakeTutorialBtn.addEventListener('click',() => updateSelectedElm(snakeTutorialBtn));
+    snakeEasyBtn.addEventListener('click',    () => updateSelectedElm(snakeEasyBtn));
+    snakeMediumBtn.addEventListener('click',  () => updateSelectedElm(snakeMediumBtn));
+    snakeHardBtn.addEventListener('click',    () => updateSelectedElm(snakeHardBtn));
+    
     // ゲーム開始ボタン
     const gameStartBtn = document.createElement('button');
     gameStartBtn.id = 'game-start-btn';
@@ -171,7 +166,7 @@ export function showModeSelectPage() {
     snakeContainer.appendChild(snakeDifficultySelectUiWrapper);
 
     // 💡 敵の選択ラッパーは、新設したコンテナに入れる
-    opponentCardsContainer.appendChild(cubeContainer);
+    // opponentCardsContainer.appendChild(cubeContainer);
     opponentCardsContainer.appendChild(snakeContainer);
 
     // 💡 全体のオーバーレイには「タイトル」「カードコンテナ」「開始ボタン」を縦に並べる
@@ -199,7 +194,8 @@ export function showModeSelectPage() {
         }
     }, { once: true });
 
-    updateSelectedElm(cubeEasyBtn);
+    // updateSelectedElm(cubeEasyBtn);
+    updateSelectedElm(snakeTutorialBtn); // デフォルトはスネークの「かんたん」に設定
 
     function updateSelectedElm(selectedElm) {
         difficultyBtns.forEach(elm => elm.classList.remove('selected'));

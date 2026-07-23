@@ -302,8 +302,8 @@ export class Cube extends DynamicObject {
     }
 
     /**
-    * 突進待機状態に更新
-    * @param {void} 
+    * 突進待機状態を開始
+    * @param {number} now - 現在の時間（ミリ秒）
     * @returns {void}　
     */
     startDashWarning(now) {
@@ -357,7 +357,6 @@ export class Cube extends DynamicObject {
         this.applyForce(forceVector);
     }
 
-
     /**
     * 突進
     * @param {void} 
@@ -375,29 +374,21 @@ export class Cube extends DynamicObject {
         this.applyImpulse(force);
     }
 
-
     updateWeakFace(newWeakFace) {
 
         const normalColor = cubeColors[this.id % cubeColors.length];
-
         for (let i = 0; i < 6; i++) {
-
             let color = normalColor;
-
             if (i === this.headFace) {
                 color = 0xff0000;
             }
-
             if (i === this.weakFace) {
                 color = 0xfff4a3;
             }
-
             this.mesh.material[i].color.setHex(color);
             this.mesh.material[i].emissive.set(
                 new THREE.Color(color).multiplyScalar(0.2)
             );
         }
     }
-
-
 }

@@ -7,6 +7,7 @@ import {
 import { Difficulty, DifficultyNames, FIELD_RADIUS } from "../constants.js";
 import { showHpBar, updateHpBar } from "../ui/hpBar.js";
 import { SnakeTutorial } from "../tutorial/snakeTutorial.js";
+import { getGameTime } from "../core/gameClock.js";
 
 export class Snake extends DynamicObject {
 
@@ -123,10 +124,10 @@ export class Snake extends DynamicObject {
 
         // 追跡時の蛇行運動に使用する状態
         this.chaseSwayPhase = 0;
-        this.lastChaseUpdateTime = performance.now();
+        this.lastChaseUpdateTime = getGameTime();
 
         // 光線発射の状態管理
-        this.lastLightRayTime = performance.now();
+        this.lastLightRayTime = getGameTime();
         this.isPreparingLightRay = false;
         this.isFiringLightRay = false;
         this.lightRayWarningStartedAt = 0;
@@ -221,7 +222,7 @@ export class Snake extends DynamicObject {
     * @returns {void}
     */
     update(target){
-        const now = performance.now();
+        const now = getGameTime();
 
         // チュートリアル中は通常の追跡・光線攻撃を停止する
         if (this.tutorial) {

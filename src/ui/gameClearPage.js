@@ -4,8 +4,6 @@ import { getEnumKey } from '../util.js';
 
 export function showGameClearPage(event) {
 
-    console.log('Game Clear Page: Displaying game clear dialog');
-
     // 背景のオーバーレイ
     const overlay = document.createElement('div');
     overlay.classList.add('game-clear-overlay');
