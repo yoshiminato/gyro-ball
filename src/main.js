@@ -29,6 +29,7 @@ import { Cube } from './object/cube.js';
 
 import { Snake } from './object/snake.js';
 import { registerPauseUi } from './ui/pausePage.js';
+import { registerBgmEvents } from './audioManager.js';
 
 
 const CAM_DIST = 14;
@@ -41,6 +42,7 @@ const camTarget = new THREE.Vector3();
 
 registerRouterEvents();
 registerPauseUi();
+registerBgmEvents();
 animate();
 
 window.addEventListener('game-start', init);

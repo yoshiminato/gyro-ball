@@ -22,7 +22,7 @@ function showPauseButton() {
     pauseButton = document.createElement('button');
     pauseButton.id = 'pause-button';
     pauseButton.type = 'button';
-    pauseButton.textContent = 'ポーズ';
+    pauseButton.textContent = '⏸';
     pauseButton.setAttribute('aria-label', 'ゲームをポーズする');
     pauseButton.addEventListener('click', openPauseOverlay);
     document.body.appendChild(pauseButton);

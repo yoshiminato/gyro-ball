@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="css/hpBar.css">
   <link rel="stylesheet" href="css/gameOverPage.css">
   <link rel="stylesheet" href="css/gameClearPage.css">
+  <link rel="stylesheet" href="css/pausePage.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -20,16 +21,15 @@
     <div id="title">🌀 GYRO BALL</div>
   </div>
 
-  <div id="gyro-indicator">ジャイロ: 待機中...</div>
-  <div id="keyboard-hint">PC操作: WASD / 矢印キー | R: リセット</div>
+  <div id="keyboard-hint">PC操作: WASD / 矢印キー</div>
 
   <!-- Three.js 3d描画 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <!-- Cannon.js 物理演算 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
   <!-- Eruda デバッグ用 -->
-  <!-- <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-  <script>eruda.init();</script> -->
+  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+  <script>eruda.init();</script>
 
   <script type="module" src="src/main.js"></script>
 </body>

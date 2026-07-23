@@ -5,6 +5,12 @@ import { Cube } from './object/cube.js';
 import { Snake } from './object/snake.js';
 import { Opponent, Difficulty, GameState } from './constants.js';
 import { pauseGameClock, resetGameClock, resumeGameClock } from './core/gameClock.js';
+import {
+    pauseBgm,
+    playGameBgm,
+    resumeBgm,
+    stopBgm
+} from './audioManager.js';
 
 let started = false;
 let destroyGameFlg = false;
@@ -40,6 +46,7 @@ export function pauseGame() {
     inputEnabledBeforePause = ball?.inputEnabled ?? true;
     ball?.setInputEnabled(false);
     pauseGameClock();
+    pauseBgm();
     return true;
 }
 
@@ -49,6 +56,7 @@ export function resumeGame() {
     gameState = GameState.PLAYING;
     resumeGameClock();
     ball?.setInputEnabled(inputEnabledBeforePause);
+    resumeBgm();
     return true;
 }
 
@@ -57,6 +65,7 @@ function hundleGameOver() {
 
     gameState = GameState.GAME_OVER;
     started = false;
+    stopBgm();
 }
 
 function handleGameClear() {
@@ -64,6 +73,7 @@ function handleGameClear() {
 
     gameState = GameState.GAME_CLEAR;
     started = false;
+    stopBgm();
 }
 
 function restartGame() {
@@ -78,6 +88,7 @@ function returnToModeSelect() {
 
 // 物理演算器とレンダラを削除 & 各種変数を初期化
 export function destroyGame() {
+    stopBgm();
     resetGameClock();
     cube?.tutorial?.removeOverlay();
     snake?.tutorial?.removeOverlay();
@@ -104,6 +115,7 @@ export function startGame(){
     gameState = GameState.PLAYING;
     initRenderer();
     initPhysics();
+    playGameBgm(Number(difficulty) === Difficulty.TUTORIAL);
 
     console.log(`Starting game with difficulty: ${difficulty}, opponent: ${opponent}`);
 

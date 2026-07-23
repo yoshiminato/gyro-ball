@@ -4,7 +4,7 @@ const keys = {};
 let currentBall = null;
 let registered = false;
 
-const FORCE_COEF = 1.5;
+const FORCE_COEF = 1.0;
 
 export function registerKeyEvent(ball) {
     currentBall = ball;

@@ -31,8 +31,6 @@ export class Ball extends DynamicObject{
         this.body.name = 'ball';
 
     }
-
-
     
     resetHeading(){
         this.heading = this.initialHeading;
