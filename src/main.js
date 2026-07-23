@@ -30,6 +30,7 @@ import { Cube } from './object/cube.js';
 import { Snake } from './object/snake.js';
 import { registerPauseUi } from './ui/pausePage.js';
 import { registerBgmEvents } from './audioManager.js';
+import { isMobileDevice } from './util.js';
 
 
 const CAM_DIST = 14;
@@ -43,10 +44,19 @@ const camTarget = new THREE.Vector3();
 registerRouterEvents();
 registerPauseUi();
 registerBgmEvents();
+showControlHint();
 animate();
 
 window.addEventListener('game-start', init);
 
+function showControlHint() {
+    const controlHint = document.getElementById('keyboard-hint');
+    if (!controlHint) return;
+
+    controlHint.textContent = isMobileDevice()
+        ? '移動：端末を傾ける　ジャンプ：画面をタップ'
+        : '移動：WASD / 矢印キー　ジャンプ：スペースキー';
+}
 
 function init(e) {
 

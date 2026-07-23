@@ -91,8 +91,8 @@ export function destroyGame() {
     started = false;
     stopBgm();
     resetGameClock();
-    cube?.tutorial?.removeOverlay();
-    snake?.tutorial?.removeOverlay();
+    cube?.tutorial?.destroyUi();
+    snake?.tutorial?.destroyUi();
     destroyGameFlg = false;
     try{
         destroyRenderer();

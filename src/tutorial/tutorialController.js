@@ -12,6 +12,7 @@ export class TutorialController {
     static TURN_ANGLE = Math.PI / 2;
     static EVADE_DURATION = 10000;
     static EVADE_ENEMY_HP = 200;
+    static STEP_COMPLETE_DISPLAY_DURATION = 900;
 
     /**
      * チュートリアルの実行順。
@@ -66,6 +67,11 @@ export class TutorialController {
         this.weakPartName = partNames.weak ?? '黄色い弱点';
         this.ball = null;
         this.overlay = null;
+        this.objectivePanel = null;
+        this.objectiveTitle = null;
+        this.objectiveDescription = null;
+        this.objectiveProgressText = null;
+        this.objectiveProgressFill = null;
         this.enemyVisible = false;
         this.isMobile = isMobileDevice();
 
@@ -84,6 +90,7 @@ export class TutorialController {
         this.battleDamageReceived = false;
         this.weakPointHit = false;
         this.dangerNoticeOpen = false;
+        this.stepCompletedAt = 0;
     }
 
     /** 現在実行中の手順を返す。 */
@@ -109,9 +116,22 @@ export class TutorialController {
             return;
         }
 
+        // 達成内容を短時間表示してから、次の説明へ進む。
+        if (this.stepState === 'completing') {
+            ball.setInputEnabled(false);
+            if (
+                getGameTime() - this.stepCompletedAt
+                >= TutorialController.STEP_COMPLETE_DISPLAY_DURATION
+            ) {
+                this.advanceStep();
+            }
+            return;
+        }
+
         // 最後の手順まで終わったら完了画面を表示する。
         if (!this.currentStep) {
             ball.setInputEnabled(false);
+            this.hideObjective();
 
             if (this.stepState !== 'completed') {
                 this.stepState = 'completed';
@@ -123,6 +143,7 @@ export class TutorialController {
         // 新しい手順に入った最初のフレームで説明を表示する。
         if (this.stepState === 'not-started') {
             ball.setInputEnabled(false);
+            this.hideObjective();
             this.stepState = 'waiting-confirmation';
             this[this.currentStep.show]();
             return;
@@ -136,10 +157,15 @@ export class TutorialController {
         }
 
         ball.setInputEnabled(true);
+        this.updateObjective();
 
         // 各手順のupdate関数は、完了したときにtrueを返す。
         const isCompleted = this[this.currentStep.update](ball);
-        if (isCompleted) this.advanceStep();
+        if (isCompleted) {
+            this.completeCurrentStep();
+        } else {
+            this.updateObjective();
+        }
     }
 
     /** 説明のOKが押された後、現在の練習を開始する。 */
@@ -148,6 +174,21 @@ export class TutorialController {
         this[this.currentStep.begin]();
         this.stepState = 'practicing';
         this.ball.setInputEnabled(true);
+        this.updateObjective();
+    }
+
+    /** 達成した手順を短時間表示する。 */
+    completeCurrentStep() {
+        const completedStepId = this.currentStep.id;
+        this.stepState = 'completing';
+        this.stepCompletedAt = getGameTime();
+        this.ball.setInputEnabled(false);
+        this.showObjective(
+            `✓ ${this.getStepTitle(completedStepId)} 完了！`,
+            '次の練習へ進みます',
+            '達成',
+            1
+        );
     }
 
     /** 現在の手順を完了し、次の手順へ進める。 */
@@ -155,6 +196,189 @@ export class TutorialController {
         this.ball.setInputEnabled(false);
         this.stepIndex++;
         this.stepState = 'not-started';
+    }
+
+    /** 現在の練習内容と進捗を画面上部へ表示する。 */
+    updateObjective() {
+        const stepId = this.currentStep?.id;
+        if (!stepId || this.stepState !== 'practicing') return;
+
+        const now = getGameTime();
+
+        switch (stepId) {
+            case 'movement': {
+                const progress = Math.min(
+                    this.traveledDistance / TutorialController.MOVE_DISTANCE,
+                    1
+                );
+                this.showObjective(
+                    '前進・後進の練習',
+                    this.isMobile
+                        ? '端末を前後に傾けて10m移動しよう'
+                        : 'W・Sキーで10m移動しよう',
+                    `${this.traveledDistance.toFixed(1)} / ${TutorialController.MOVE_DISTANCE}m`,
+                    progress
+                );
+                break;
+            }
+            case 'turn': {
+                const targetDegrees = Math.round(
+                    TutorialController.TURN_ANGLE * 180 / Math.PI
+                );
+                const currentDegrees = Math.min(
+                    this.turnedAngle * 180 / Math.PI,
+                    targetDegrees
+                );
+                this.showObjective(
+                    '方向転換の練習',
+                    this.isMobile
+                        ? '端末を左右に傾けて90°回転しよう'
+                        : 'A・Dキーで90°回転しよう',
+                    `${Math.round(currentDegrees)} / ${targetDegrees}°`,
+                    currentDegrees / targetDegrees
+                );
+                break;
+            }
+            case 'jump': {
+                const hasJumped = this.ball.jumpCount > this.jumpStartCount;
+                this.showObjective(
+                    'ジャンプの練習',
+                    this.isMobile
+                        ? '画面をタップしてジャンプし、着地しよう'
+                        : 'Spaceキーでジャンプし、着地しよう',
+                    this.hasLeftGround
+                        ? '着地しよう'
+                        : (hasJumped ? 'ジャンプ中' : 'ジャンプしよう'),
+                    this.hasLeftGround ? 0.75 : (hasJumped ? 0.5 : 0)
+                );
+                break;
+            }
+            case 'battle':
+                this.showObjective(
+                    '攻撃の練習',
+                    `${this.dangerPartName}を避け、${this.safePartName}にぶつかろう`,
+                    '1回ダメージを与える',
+                    this.battleDamageReceived ? 1 : 0
+                );
+                break;
+            case 'weak-point':
+                this.showObjective(
+                    '弱点への攻撃',
+                    `${this.weakPartName}にボールをぶつけよう`,
+                    '弱点を1回攻撃する',
+                    this.weakPointHit ? 1 : 0
+                );
+                break;
+            case 'evade': {
+                const elapsed = Math.max(0, now - this.evadeStartedAt);
+                const remaining = Math.max(
+                    0,
+                    TutorialController.EVADE_DURATION - elapsed
+                );
+                this.showObjective(
+                    '敵から逃げる練習',
+                    `${this.dangerPartName}を避けて逃げ続けよう`,
+                    `残り ${(remaining / 1000).toFixed(1)}秒`,
+                    elapsed / TutorialController.EVADE_DURATION
+                );
+                break;
+            }
+            case 'warningState': {
+                const duration = this.warningStateDuration ?? 2000;
+                const elapsed = Math.max(0, now - (this.waringStartTime ?? now));
+                this.showObjective(
+                    'レーザーの予兆',
+                    `${this.enemyName}の点滅を確認しよう`,
+                    '点滅後にレーザーが発射されます',
+                    elapsed / duration
+                );
+                break;
+            }
+            case 'lightRay': {
+                const isFiring = this.enemy.isFiringLightRay;
+                const warningDuration = this.warningStateDuration ?? 2000;
+                const warningElapsed = Math.max(
+                    0,
+                    now - (this.warningStateStartTime ?? now)
+                );
+                this.showObjective(
+                    'レーザー回避',
+                    isFiring
+                        ? '移動してレーザーの射線から離れよう'
+                        : '点滅を確認して発射に備えよう',
+                    isFiring ? 'レーザー発射中' : '発射準備中',
+                    isFiring ? 0.75 : warningElapsed / warningDuration
+                );
+                break;
+            }
+        }
+    }
+
+    getStepTitle(stepId) {
+        return {
+            movement: '前進・後進の練習',
+            turn: '方向転換の練習',
+            jump: 'ジャンプの練習',
+            battle: '攻撃の練習',
+            'weak-point': '弱点への攻撃',
+            evade: '敵から逃げる練習',
+            warningState: 'レーザーの予兆',
+            lightRay: 'レーザー回避'
+        }[stepId] ?? '練習';
+    }
+
+    showObjective(title, description, progressText, progress) {
+        this.ensureObjectivePanel();
+        this.objectiveTitle.textContent = title;
+        this.objectiveDescription.textContent = description;
+        this.objectiveProgressText.textContent = progressText;
+        this.objectiveProgressFill.style.width =
+            `${Math.max(0, Math.min(progress, 1)) * 100}%`;
+        this.objectivePanel.hidden = false;
+    }
+
+    ensureObjectivePanel() {
+        if (this.objectivePanel) return;
+
+        const panel = document.createElement('aside');
+        panel.className = 'tutorial-objective-panel';
+        panel.setAttribute('aria-label', '現在の目標');
+
+        const title = document.createElement('strong');
+        title.className = 'tutorial-objective-title';
+
+        const description = document.createElement('p');
+        description.className = 'tutorial-objective-description';
+
+        const progressRow = document.createElement('div');
+        progressRow.className = 'tutorial-objective-progress-row';
+
+        const progressTrack = document.createElement('div');
+        progressTrack.className = 'tutorial-objective-progress-track';
+
+        const progressFill = document.createElement('div');
+        progressFill.className = 'tutorial-objective-progress-fill';
+
+        const progressText = document.createElement('span');
+        progressText.className = 'tutorial-objective-progress-text';
+
+        progressTrack.appendChild(progressFill);
+        progressRow.appendChild(progressTrack);
+        progressRow.appendChild(progressText);
+        panel.appendChild(title);
+        panel.appendChild(description);
+        panel.appendChild(progressRow);
+        document.body.appendChild(panel);
+
+        this.objectivePanel = panel;
+        this.objectiveTitle = title;
+        this.objectiveDescription = description;
+        this.objectiveProgressText = progressText;
+        this.objectiveProgressFill = progressFill;
+    }
+
+    hideObjective() {
+        if (this.objectivePanel) this.objectivePanel.hidden = true;
     }
 
     showMovementExplanation() {
@@ -378,6 +602,7 @@ export class TutorialController {
     }
 
     showTutorialCompletion() {
+        this.hideObjective();
         this.showOverlay(
             'チュートリアル完了',
             `${this.enemyName}とのすべての練習を完了しました！`,
@@ -390,7 +615,12 @@ export class TutorialController {
 
     /** 現在の手順を開始する共通の説明画面 */
     showStepOverlay(title, message) {
-        this.showOverlay(title, message, 'OK', () => this.beginCurrentStep());
+        this.showOverlay(
+            title,
+            message,
+            '練習を開始',
+            () => this.beginCurrentStep()
+        );
     }
 
     showOverlay(title, message, buttonText, onConfirm) {
@@ -430,6 +660,16 @@ export class TutorialController {
     removeOverlay() {
         this.overlay?.remove();
         this.overlay = null;
+    }
+
+    destroyUi() {
+        this.removeOverlay();
+        this.objectivePanel?.remove();
+        this.objectivePanel = null;
+        this.objectiveTitle = null;
+        this.objectiveDescription = null;
+        this.objectiveProgressText = null;
+        this.objectiveProgressFill = null;
     }
 
     // 派生クラスで実装する
