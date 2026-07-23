@@ -1,219 +1,144 @@
 import { Opponent, Difficulty } from '../constants.js';
-import { opponent, difficulty, updateOpponentAndDifficulty } from '../gameController.js';
+import { updateOpponentAndDifficulty } from '../gameController.js';
 
 export function showModeSelectPage() {
-    // 背景画像の設定
-    // document.body.style.backgroundImage = "url('asset/img/gameView.png')";
-    // document.body.style.backgroundPosition = "center center";
-    // document.body.style.backgroundRepeat = "no-repeat";
-    // document.body.style.backgroundSize = "cover";
-    // document.body.style.backgroundAttachment = "fixed";
-
-    // overlayの作成
     const modeSelectOverlay = document.createElement('div');
     modeSelectOverlay.id = 'mode-select-overlay';
 
-    // タイトル
     const titleText = document.createElement('h1');
     titleText.id = 'title-mode-select-page';
-    titleText.textContent = 'モード選択';
+    titleText.textContent = '難易度選択';
 
-    // 敵ごとののコンテナ
-    const opponentCardsContainer = document.createElement('div');
-    opponentCardsContainer.className = 'opponent-cards-container';
+    const selectionPanel = document.createElement('div');
+    selectionPanel.className = 'difficulty-selection-panel';
 
+    // 敵は固定のため、選択カードではなく対戦相手の紹介として表示する
+    const opponentIntro = document.createElement('section');
+    opponentIntro.className = 'opponent-intro';
+    opponentIntro.setAttribute('aria-label', '対戦相手');
 
-    /***
-     * キューブ 
-    ***/
+    const opponentImageFrame = document.createElement('div');
+    opponentImageFrame.className = 'opponent-image-frame';
 
-    // 全体のコンテナ
-    const cubeContainer = document.createElement('div');
-    cubeContainer.className = 'cube-card-container';
-    cubeContainer.classList.add('opponent-container'); // 💡 className = ... だと上書きされちゃうのでclassListに変更！
-
-    const cubeImageFrame = document.createElement('div');
-    cubeImageFrame.className = 'opponent-image-frame';
-
-    // 敵のキューブの画像 or gif 
-    const cubeImg = document.createElement('img');
-    cubeImg.className = 'cube-opponent-enemy-img opponent-enemy-img';
-    cubeImg.src = 'asset/img/cube.png';
-    cubeImg.alt = 'Cube Enemy';
-
-    // 難易度選択UIのラッパー
-    const cubeDifficultySelectUiWrapper = document.createElement('div');
-    cubeDifficultySelectUiWrapper.className = 'difficulty-select-ui-wrapper';
-    
-    // 難易度選択のボタン
-    const cubeTutorialBtn = document.createElement('button');
-    const cubeEasyBtn = document.createElement('button');
-    const cubeMediumBtn = document.createElement('button');
-    const cubeHardBtn = document.createElement('button');
-
-    cubeTutorialBtn.className = 'difficulty-btn';
-    cubeTutorialBtn.classList.add('tutorial-btn');
-    cubeTutorialBtn.dataset.opponent = Opponent.CUBE;
-    cubeTutorialBtn.dataset.difficulty = Difficulty.TUTORIAL;
-    cubeEasyBtn.className = 'difficulty-btn';
-    cubeEasyBtn.classList.add('easy-btn');
-    cubeEasyBtn.dataset.opponent = Opponent.CUBE;
-    cubeEasyBtn.dataset.difficulty = Difficulty.EASY;
-    cubeMediumBtn.className = 'difficulty-btn';
-    cubeMediumBtn.classList.add('medium-btn');
-    cubeMediumBtn.dataset.opponent = Opponent.CUBE;
-    cubeMediumBtn.dataset.difficulty = Difficulty.NORMAL;
-    cubeHardBtn.className = 'difficulty-btn';
-    cubeHardBtn.classList.add('hard-btn');
-    cubeHardBtn.dataset.opponent = Opponent.CUBE;
-    cubeHardBtn.dataset.difficulty = Difficulty.HARD;
-
-    /***
-     * スネーク
-    ***/
-
-    // 全体のラッパー
-    const snakeContainer = document.createElement('div');
-    snakeContainer.className = 'snake-card-container';
-    snakeContainer.classList.add('opponent-container');
-
-    const snakeImageFrame = document.createElement('div');
-    snakeImageFrame.className = 'opponent-image-frame';
-
-    // 敵のスネークの画像 or gif 
     const snakeEnemyImg = document.createElement('img');
-    snakeEnemyImg.className = 'snake-opponent-enemy-img opponent-enemy-img';
+    snakeEnemyImg.className = 'opponent-enemy-img';
     snakeEnemyImg.src = 'asset/img/snake.png';
-    snakeEnemyImg.alt = 'Snake Enemy';
+    snakeEnemyImg.alt = '対戦相手のスネーク';
 
-    // 難易度選択UIのラッパー
-    const snakeDifficultySelectUiWrapper = document.createElement('div');
-    snakeDifficultySelectUiWrapper.className = 'difficulty-select-ui-wrapper';
-    
-    // 難易度選択のボタン
-    const snakeTutorialBtn = document.createElement('button');
-    const snakeEasyBtn = document.createElement('button');
-    const snakeMediumBtn = document.createElement('button');
-    const snakeHardBtn = document.createElement('button');
+    const opponentTextWrapper = document.createElement('div');
+    opponentTextWrapper.className = 'opponent-text-wrapper';
 
-    // 
-    snakeTutorialBtn.className = 'difficulty-btn';
-    snakeTutorialBtn.classList.add('tutorial-btn');
-    snakeTutorialBtn.dataset.opponent = Opponent.SNAKE;
-    snakeTutorialBtn.dataset.difficulty = Difficulty.TUTORIAL;
-    snakeEasyBtn.className = 'difficulty-btn';
-    snakeEasyBtn.classList.add('easy-btn');
-    snakeEasyBtn.dataset.opponent = Opponent.SNAKE;
-    snakeEasyBtn.dataset.difficulty = Difficulty.EASY;
-    snakeMediumBtn.className = 'difficulty-btn';
-    snakeMediumBtn.classList.add('medium-btn');
-    snakeMediumBtn.dataset.opponent = Opponent.SNAKE;
-    snakeMediumBtn.dataset.difficulty = Difficulty.NORMAL;
-    snakeHardBtn.className = 'difficulty-btn';
-    snakeHardBtn.classList.add('hard-btn');
-    snakeHardBtn.dataset.opponent = Opponent.SNAKE;
-    snakeHardBtn.dataset.difficulty = Difficulty.HARD;
+    const opponentLabel = document.createElement('span');
+    opponentLabel.className = 'selection-label';
+    opponentLabel.textContent = '対戦相手';
 
-    // 
-    const difficultyBtns = [
-        cubeTutorialBtn,
-        cubeEasyBtn,
-        cubeMediumBtn,
-        cubeHardBtn,
-        snakeTutorialBtn,
-        snakeEasyBtn,
-        snakeMediumBtn,
-        snakeHardBtn
-    ];
+    const opponentName = document.createElement('strong');
+    opponentName.className = 'opponent-name';
+    opponentName.textContent = 'SNAKE';
 
-    // 難易度選択のイベント
-    cubeTutorialBtn.addEventListener('click', () => updateSelectedElm(cubeTutorialBtn));
-    cubeEasyBtn.addEventListener('click',     () => updateSelectedElm(cubeEasyBtn));
-    cubeMediumBtn.addEventListener('click',   () => updateSelectedElm(cubeMediumBtn));
-    cubeHardBtn.addEventListener('click',     () => updateSelectedElm(cubeHardBtn));
-    snakeTutorialBtn.addEventListener('click',() => updateSelectedElm(snakeTutorialBtn));
-    snakeEasyBtn.addEventListener('click',    () => updateSelectedElm(snakeEasyBtn));
-    snakeMediumBtn.addEventListener('click',  () => updateSelectedElm(snakeMediumBtn));
-    snakeHardBtn.addEventListener('click',    () => updateSelectedElm(snakeHardBtn));
-    
-    // ゲーム開始ボタン
+    opponentImageFrame.appendChild(snakeEnemyImg);
+    opponentTextWrapper.appendChild(opponentLabel);
+    opponentTextWrapper.appendChild(opponentName);
+    opponentIntro.appendChild(opponentImageFrame);
+    opponentIntro.appendChild(opponentTextWrapper);
+
+    const tutorialSection = document.createElement('section');
+    tutorialSection.className = 'tutorial-selection-section';
+
+    const tutorialLabel = document.createElement('h2');
+    tutorialLabel.className = 'selection-section-title';
+    tutorialLabel.textContent = 'はじめて遊ぶ方';
+
+    const difficultySection = document.createElement('section');
+    difficultySection.className = 'difficulty-selection-section';
+
+    const difficultyLabel = document.createElement('h2');
+    difficultyLabel.className = 'selection-section-title';
+    difficultyLabel.textContent = '難易度';
+
+    const difficultyButtons = document.createElement('div');
+    difficultyButtons.className = 'difficulty-select-ui-wrapper';
+
+    const tutorialBtn = createDifficultyButton(
+        'チュートリアル',
+        'tutorial-btn',
+        Difficulty.TUTORIAL
+    );
+    const easyBtn = createDifficultyButton(
+        'かんたん',
+        'easy-btn',
+        Difficulty.EASY
+    );
+    const mediumBtn = createDifficultyButton(
+        'ふつう',
+        'medium-btn',
+        Difficulty.NORMAL
+    );
+    const hardBtn = createDifficultyButton(
+        'むずかしい',
+        'hard-btn',
+        Difficulty.HARD
+    );
+    const difficultyBtns = [tutorialBtn, easyBtn, mediumBtn, hardBtn];
+
+    tutorialSection.appendChild(tutorialLabel);
+    tutorialSection.appendChild(tutorialBtn);
+    difficultyButtons.appendChild(easyBtn);
+    difficultyButtons.appendChild(mediumBtn);
+    difficultyButtons.appendChild(hardBtn);
+    difficultySection.appendChild(difficultyLabel);
+    difficultySection.appendChild(difficultyButtons);
+
+    selectionPanel.appendChild(opponentIntro);
+    selectionPanel.appendChild(tutorialSection);
+    selectionPanel.appendChild(difficultySection);
+
     const gameStartBtn = document.createElement('button');
     gameStartBtn.id = 'game-start-btn';
-    gameStartBtn.textContent = 'ゲーム開始';
+    gameStartBtn.type = 'button';
+
+    difficultyBtns.forEach((button) => {
+        button.addEventListener('click', () => updateSelectedElm(button));
+    });
 
     gameStartBtn.addEventListener('click', () => {
-        // Tutorial固有の処理は、今後game-start側でDifficulty.TUTORIALを判定して追加する
-        const gameStartEvent = new CustomEvent('game-start');
-        window.dispatchEvent(gameStartEvent);
+        window.dispatchEvent(new CustomEvent('game-start'));
     }, { once: true });
 
-
-    // --- 要素の組み立て ---
-    cubeDifficultySelectUiWrapper.appendChild(cubeTutorialBtn);
-    cubeDifficultySelectUiWrapper.appendChild(cubeEasyBtn);
-    cubeDifficultySelectUiWrapper.appendChild(cubeMediumBtn);
-    cubeDifficultySelectUiWrapper.appendChild(cubeHardBtn);
-    cubeImageFrame.appendChild(cubeImg);
-    cubeContainer.appendChild(cubeImageFrame);
-    cubeContainer.appendChild(cubeDifficultySelectUiWrapper);
-
-    snakeDifficultySelectUiWrapper.appendChild(snakeTutorialBtn);
-    snakeDifficultySelectUiWrapper.appendChild(snakeEasyBtn);
-    snakeDifficultySelectUiWrapper.appendChild(snakeMediumBtn);
-    snakeDifficultySelectUiWrapper.appendChild(snakeHardBtn);
-    snakeImageFrame.appendChild(snakeEnemyImg);
-    snakeContainer.appendChild(snakeImageFrame);
-    snakeContainer.appendChild(snakeDifficultySelectUiWrapper);
-
-    // 💡 敵の選択ラッパーは、新設したコンテナに入れる
-    // opponentCardsContainer.appendChild(cubeContainer);
-    opponentCardsContainer.appendChild(snakeContainer);
-
-    // 💡 全体のオーバーレイには「タイトル」「カードコンテナ」「開始ボタン」を縦に並べる
     modeSelectOverlay.appendChild(titleText);
-    modeSelectOverlay.appendChild(opponentCardsContainer); 
+    modeSelectOverlay.appendChild(selectionPanel);
     modeSelectOverlay.appendChild(gameStartBtn);
-    
     document.body.appendChild(modeSelectOverlay);
 
-
-    // 難易度ボタンのテキストを更新
-    const tutorialBtns = document.querySelectorAll('.tutorial-btn');
-    const easyBtns = document.querySelectorAll('.easy-btn');
-    const mediumBtns = document.querySelectorAll('.medium-btn');
-    const hardBtns = document.querySelectorAll('.hard-btn'); 
-    tutorialBtns.forEach(btn => btn.textContent = 'チュートリアル');
-    easyBtns.forEach(btn => btn.textContent = 'かんたん');
-    mediumBtns.forEach(btn => btn.textContent = 'ふつう');
-    hardBtns.forEach(btn => btn.textContent = 'むずかしい');
-
     window.addEventListener('game-start', () => {
-        // ゲーム開始時にモード選択画面を非表示にする
-        if (modeSelectOverlay.parentNode) {
-            modeSelectOverlay.parentNode.removeChild(modeSelectOverlay);
-        }
+        modeSelectOverlay.remove();
     }, { once: true });
 
-    // updateSelectedElm(cubeEasyBtn);
-    updateSelectedElm(snakeTutorialBtn); // デフォルトはスネークの「かんたん」に設定
+    // 通常プレイへの導線を優先し、「かんたん」を初期選択にする
+    updateSelectedElm(easyBtn);
 
     function updateSelectedElm(selectedElm) {
-        difficultyBtns.forEach(elm => elm.classList.remove('selected'));
-        selectedElm.classList.add('selected');
-        updateOpponentAndDifficulty(selectedElm.dataset.opponent, selectedElm.dataset.difficulty);
-        gameStartBtn.textContent = Number(difficulty) === Difficulty.TUTORIAL
-            ? 'チュートリアル開始'
-            : 'ゲーム開始';
+        difficultyBtns.forEach((button) => {
+            const isSelected = button === selectedElm;
+            button.classList.toggle('selected', isSelected);
+            button.setAttribute('aria-pressed', String(isSelected));
+        });
 
-        cubeContainer.classList.remove('selected-opponent');
-        snakeContainer.classList.remove('selected-opponent');
-        if (opponent == Opponent.CUBE) cubeContainer.classList.add('selected-opponent');
-        else snakeContainer.classList.add('selected-opponent');   
+        const selectedDifficulty = Number(selectedElm.dataset.difficulty);
+        updateOpponentAndDifficulty(Opponent.SNAKE, selectedDifficulty);
+        gameStartBtn.textContent =
+            selectedDifficulty === Difficulty.TUTORIAL
+                ? 'チュートリアル開始'
+                : 'ゲーム開始';
     }
+}
 
-    function removeModeSelectOverlay() {
-        if (modeSelectOverlay.parentNode) {
-            modeSelectOverlay.remove();
-        }
-    }
+function createDifficultyButton(text, className, difficulty) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `difficulty-btn ${className}`;
+    button.textContent = text;
+    button.dataset.difficulty = difficulty;
+    button.setAttribute('aria-pressed', 'false');
+    return button;
 }

@@ -8,11 +8,18 @@ const FORCE_COEF = 1.0;
 
 export function registerKeyEvent(ball) {
     currentBall = ball;
+    clearKeyState();
     if (registered) return;
 
     registered = true;
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', clearKeyState);
+    window.addEventListener('pagehide', clearKeyState);
+    window.addEventListener('game-over', clearKeyState);
+    window.addEventListener('game-clear', clearKeyState);
+    window.addEventListener('back-to-mode-select', clearKeyState);
 }
 
 function handleKeyDown(e) {
@@ -23,6 +30,16 @@ function handleKeyDown(e) {
 
 function handleKeyUp(e) {
     keys[e.code] = false;
+}
+
+function handleVisibilityChange() {
+    if (document.hidden) clearKeyState();
+}
+
+function clearKeyState() {
+    Object.keys(keys).forEach((code) => {
+        keys[code] = false;
+    });
 }
 
 function calculateHeadingDeltaFromKeys(dt) {

@@ -202,4 +202,8 @@ export class SnakeTutorial extends TutorialController {
             }
         );
     }
+
+    chaseTarget(target) {
+        this.enemy.chase(target, getGameTime());
+    }
 }

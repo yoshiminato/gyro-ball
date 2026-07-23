@@ -20,42 +20,42 @@ export class TutorialController {
      * update: 毎フレーム行う完了判定
      */
     steps = [
-        // {
-        //     id: 'movement',
-        //     show: 'showMovementExplanation',
-        //     begin: 'beginMovementPractice',
-        //     update: 'updateMovementPractice'
-        // },
-        // {
-        //     id: 'turn',
-        //     show: 'showTurnExplanation',
-        //     begin: 'beginTurnPractice',
-        //     update: 'updateTurnPractice'
-        // },
-        // {
-        //     id: 'jump',
-        //     show: 'showJumpExplanation',
-        //     begin: 'beginJumpPractice',
-        //     update: 'updateJumpPractice'
-        // },
-        // {
-        //     id: 'battle',
-        //     show: 'showBattleExplanation',
-        //     begin: 'beginBattlePractice',
-        //     update: 'updateBattlePractice'
-        // },
-        // {
-        //     id: 'weak-point',
-        //     show: 'showWeakPointExplanation',
-        //     begin: 'beginWeakPointPractice',
-        //     update: 'updateWeakPointPractice'
-        // },
-        // {
-        //     id: 'evade',
-        //     show: 'showEvadeExplanation',
-        //     begin: 'beginEvadePractice',
-        //     update: 'updateEvadePractice'
-        // }
+        {
+            id: 'movement',
+            show: 'showMovementExplanation',
+            begin: 'beginMovementPractice',
+            update: 'updateMovementPractice'
+        },
+        {
+            id: 'turn',
+            show: 'showTurnExplanation',
+            begin: 'beginTurnPractice',
+            update: 'updateTurnPractice'
+        },
+        {
+            id: 'jump',
+            show: 'showJumpExplanation',
+            begin: 'beginJumpPractice',
+            update: 'updateJumpPractice'
+        },
+        {
+            id: 'battle',
+            show: 'showBattleExplanation',
+            begin: 'beginBattlePractice',
+            update: 'updateBattlePractice'
+        },
+        {
+            id: 'weak-point',
+            show: 'showWeakPointExplanation',
+            begin: 'beginWeakPointPractice',
+            update: 'updateWeakPointPractice'
+        },
+        {
+            id: 'evade',
+            show: 'showEvadeExplanation',
+            begin: 'beginEvadePractice',
+            update: 'updateEvadePractice'
+        }
     ];
 
     constructor(enemy, enemyName, partNames = {}) {
@@ -345,6 +345,7 @@ export class TutorialController {
             `${this.dangerPartName}に衝突すると、通常のゲームではゲームオーバーになります。この部位を避けて攻撃しましょう。`,
             '練習を続ける',
             () => {
+                this.ball.reset();
                 this.dangerNoticeOpen = false;
                 this.ball?.setInputEnabled(true);
             }

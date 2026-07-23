@@ -30,7 +30,7 @@ export class Snake extends DynamicObject {
     };
     static LIGHT_RAY_SPEED = {            // 光線が伸びる速さ
         'Tutorial': 50,
-        'Easy': 70,
+        'Easy': 20,
         'Normal': 110,
         'Hard': 150
     };
@@ -533,6 +533,7 @@ export class Snake extends DynamicObject {
     * @returns {void}
     */
     chase(target, now) {
+
 
         const targetPos = this.getTargetPosition(target);
 

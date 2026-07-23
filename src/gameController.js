@@ -88,6 +88,7 @@ function returnToModeSelect() {
 
 // 物理演算器とレンダラを削除 & 各種変数を初期化
 export function destroyGame() {
+    started = false;
     stopBgm();
     resetGameClock();
     cube?.tutorial?.removeOverlay();

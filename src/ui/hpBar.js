@@ -1,6 +1,7 @@
 window.addEventListener('game-over', deleteHpBar);
 window.addEventListener('game-clear', deleteHpBar);
 window.addEventListener('tutorial-exit', deleteHpBar);
+window.addEventListener('back-to-mode-select', deleteHpBar);
 
 export function showHpBar() {
     // 画面遷移などで重複生成されることを防ぐ

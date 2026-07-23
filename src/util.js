@@ -10,22 +10,32 @@ export function isMobileDevice() {
 
 // 全画面 & 横画面
 export async function setupGameScreen(e){
-    if (typeof screen.orientation !== 'undefined' && typeof screen.orientation.lock === 'function') {
+    if (typeof document.documentElement.requestFullscreen === 'function') {
         try {
             // 画面を全画面にする
             await document.documentElement.requestFullscreen();
-
-            // 画面を横画面に固定する
-            if (isMobileDevice()) 
-                await screen.orientation.lock('landscape-primary');
-
-            // ゲーム開始イベントを発火
-            const gameStartEvent = new CustomEvent('title-exit');
-            window.dispatchEvent(gameStartEvent);
         } catch (error) {
+            // 全画面表示を拒否・非対応でも、ゲーム自体は開始できるようにする
+            console.warn("全画面表示に失敗:", error);
+        }
+    }
+
+    if (
+        isMobileDevice()
+        && typeof screen.orientation?.lock === 'function'
+    ) {
+        try {
+            // 対応端末では横画面に固定する
+            await screen.orientation.lock('landscape-primary');
+        } catch (error) {
+            // 画面固定を拒否・非対応でも、ゲーム自体は開始できるようにする
             console.warn("画面固定に失敗:", error);
         }
     }
+
+    // 全画面表示や画面固定の成否にかかわらず、モード選択へ進む
+    const gameStartEvent = new CustomEvent('title-exit');
+    window.dispatchEvent(gameStartEvent);
 }
 
 
