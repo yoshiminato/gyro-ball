@@ -119,9 +119,7 @@ function judgeCanJump(world){
 
 
 export function updateGameState(dt) {
-    if (!started) return;
-
-    if (gameState !== GameState.PLAYING) return;
+    if (!started || gameState !== GameState.PLAYING) return;
 
     // ジャンプ可能判定
     ball.canJump = judgeCanJump.call(ball, world);
@@ -139,4 +137,3 @@ export function updateGameState(dt) {
     world.step(1 / 60, dt, 3);
 
 }
-

@@ -1,3 +1,7 @@
+window.addEventListener('game-over', deleteHpBar);
+window.addEventListener('game-clear', deleteHpBar);
+window.addEventListener('tutorial-exit', deleteHpBar);
+
 export function showHpBar() {
     // 画面遷移などで重複生成されることを防ぐ
     if (document.getElementById('hp-bar-container')) return;
@@ -22,14 +26,9 @@ export function showHpBar() {
 
     document.body.appendChild(hpBarContainer);
 
-    // ゲーム終了時にHPバーを消去
-    window.addEventListener('game-over', deleteHpBar);
-    window.addEventListener('game-clear', deleteHpBar);
-    window.addEventListener('tutorial-exit', deleteHpBar);
 }
 
 export function updateHpBar(hp) {
-    console.log(`Updating HP bar: ${hp}%`);
     const hpBar = document.getElementById('hp-bar');
     if (hpBar) hpBar.style.width = `${hp}%`;
 }

@@ -1,16 +1,28 @@
 import { Ball } from '../object/ball.js';
 
 const keys = {};
+let currentBall = null;
+let registered = false;
 
 const FORCE_COEF = 0.75;
 
 export function registerKeyEvent(ball) {
-    document.addEventListener('keydown', e => {
-        keys[e.code] = true;
-        if (e.code === 'Space') ball.triggerJump();
-        if (e.code === 'KeyR') ball.resetPosition();
-    });
-    document.addEventListener('keyup', e => { keys[e.code] = false; });
+    currentBall = ball;
+    if (registered) return;
+
+    registered = true;
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+}
+
+function handleKeyDown(e) {
+    keys[e.code] = true;
+    if (e.code === 'Space') currentBall?.triggerJump();
+    if (e.code === 'KeyR') currentBall?.resetPosition();
+}
+
+function handleKeyUp(e) {
+    keys[e.code] = false;
 }
 
 function calculateHeadingDeltaFromKeys(dt) {

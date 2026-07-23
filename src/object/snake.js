@@ -86,6 +86,8 @@ export class Snake extends DynamicObject {
         this.lightRayCurrentEnd = new THREE.Vector3();
         this.lightRayDesiredEnd = new THREE.Vector3();
         this.lightRayHitPoint = new THREE.Vector3();
+        this.lightRayObstacleHitPoint = new THREE.Vector3();
+        this.hasLightRayObstacleHit = false;
         this.rayToBall = new THREE.Vector3();
         this.rayClosestPoint = new THREE.Vector3();
         this.ballPosition = new THREE.Vector3();
@@ -368,7 +370,15 @@ export class Snake extends DynamicObject {
         this.lightRayStoppedAt = 0;
         this.isFiringLightRay = true;
 
-        console.log(`travelDuration: ${this.lightRayTravelDuration}ms`);
+        // 静的な障害物との衝突地点は、発射時に一度だけ求める。
+        const obstacleHitPoint = this.findLightRayCollision(
+            this.lightRayTarget,
+            target
+        );
+        this.hasLightRayObstacleHit = Boolean(obstacleHitPoint);
+        if (obstacleHitPoint) {
+            this.lightRayObstacleHitPoint.copy(obstacleHitPoint);
+        }
     }
 
     /**
@@ -388,20 +398,19 @@ export class Snake extends DynamicObject {
             ? Math.min(elapsed / this.lightRayTravelDuration, 1)
             : 1;
 
-        // 発射方向へ光線を伸ばし、物理世界の最初の衝突点で停止する
+        // 発射方向へ光線を伸ばし、発射時に記録した衝突点で停止する
         this.lightRayDesiredEnd.lerpVectors(
             this.lightRayStart,
             this.lightRayTarget,
             progress
         );
         if (!this.lightRayStoppedAt) {
-            const hitPoint = this.findLightRayCollision(
-                this.lightRayDesiredEnd,
-                target
-            );
+            const reachedObstacle = this.hasLightRayObstacleHit
+                && this.lightRayStart.distanceToSquared(this.lightRayDesiredEnd)
+                    >= this.lightRayStart.distanceToSquared(this.lightRayObstacleHitPoint);
 
-            if (hitPoint) {
-                this.lightRayCurrentEnd.copy(hitPoint);
+            if (reachedObstacle) {
+                this.lightRayCurrentEnd.copy(this.lightRayObstacleHitPoint);
                 this.lightRayStoppedAt = now;
             } else {
                 this.lightRayCurrentEnd.copy(this.lightRayDesiredEnd);

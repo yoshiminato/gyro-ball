@@ -328,6 +328,8 @@ function onWindowResize() {
 
 export function destroyRenderer() {
 
+    window.removeEventListener('resize', onWindowResize);
+
     scene.traverse(obj=>{
 
         if(obj.geometry){

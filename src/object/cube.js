@@ -324,7 +324,6 @@ export class Cube extends DynamicObject {
         const blinkCount = Math.floor(elapsed / Cube.DASH_BLINK_INTERVAL);
         this.mesh.visible = blinkCount % 2 === 0;
 
-        console.log(blinkCount % 2 === 0 ? 'Cube visible' : 'Cube invisible');
     }
 
     

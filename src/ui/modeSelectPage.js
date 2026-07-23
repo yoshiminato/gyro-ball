@@ -150,7 +150,7 @@ export function showModeSelectPage() {
         // Tutorial固有の処理は、今後game-start側でDifficulty.TUTORIALを判定して追加する
         const gameStartEvent = new CustomEvent('game-start');
         window.dispatchEvent(gameStartEvent);
-    });
+    }, { once: true });
 
 
     // --- 要素の組み立て ---
@@ -197,7 +197,7 @@ export function showModeSelectPage() {
         if (modeSelectOverlay.parentNode) {
             modeSelectOverlay.parentNode.removeChild(modeSelectOverlay);
         }
-    });
+    }, { once: true });
 
     updateSelectedElm(cubeEasyBtn);
 
