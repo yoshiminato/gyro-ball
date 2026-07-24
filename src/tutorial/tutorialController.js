@@ -289,7 +289,7 @@ export class TutorialController {
                 this.showObjective(
                     'レーザーの予兆',
                     `${this.enemyName}の点滅を確認しよう`,
-                    '点滅後にレーザーが発射されます',
+                    '点滅状態の確認',
                     elapsed / duration
                 );
                 break;

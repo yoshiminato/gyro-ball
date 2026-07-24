@@ -24,12 +24,12 @@ export function showTitlePage() {
     // タイトル
     const titleText = document.createElement('h1');
     titleText.id = 'title-start-page';
-    titleText.textContent = '🌀 ジャイロ ボール';
+    titleText.textContent = '🌀 ローリング バトル';
 
     // 説明文
     const descriptionText = document.createElement('p');
     descriptionText.id = 'description-start-page';
-    descriptionText.textContent = 'スマホを傾けてボールを操作し、相手に体当たりをして倒そう！';
+    descriptionText.textContent = 'ボールを操作し、相手に体当たりをして倒そう！';
 
     // スタートボタン(全画面・横画面要求のトリガ)
     const startBtn = document.createElement('button');

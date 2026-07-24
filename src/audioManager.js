@@ -1,17 +1,22 @@
 const tracks = {
     menu: createTrack('asset/audio/dark_things_loop.mp3', 0.3),
     game: createTrack('asset/audio/fight_looped.wav', 0.28),
-    tutorial: createTrack('asset/audio/synthwavehouse.ogg', 0.22)
+    tutorial: createTrack('asset/audio/synthwavehouse.ogg', 0.22),
+    gameClear: createTrack('asset/audio/winfretless.ogg', 0.4, false),
+    gameOver: createTrack('asset/audio/GameOver.ogg', 0.4, false)
 };
 
 let currentTrack = null;
 let playbackRequested = false;
 
-function createTrack(src, volume) {
+function createTrack(src, volume, loop = true) {
     const audio = new Audio(src);
-    audio.loop = true;
+    audio.loop = loop;
     audio.preload = 'auto';
     audio.volume = volume;
+    audio.addEventListener('ended', () => {
+        if (currentTrack === audio) playbackRequested = false;
+    });
     return audio;
 }
 
@@ -59,6 +64,14 @@ export function playMenuBgm() {
 
 export function playGameBgm(isTutorial) {
     playTrack(isTutorial ? tracks.tutorial : tracks.game);
+}
+
+export function playGameClearBgm() {
+    playTrack(tracks.gameClear);
+}
+
+export function playGameOverBgm() {
+    playTrack(tracks.gameOver);
 }
 
 export function pauseBgm() {

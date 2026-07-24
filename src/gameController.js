@@ -7,7 +7,9 @@ import { Opponent, Difficulty, GameState } from './constants.js';
 import { pauseGameClock, resetGameClock, resumeGameClock } from './core/gameClock.js';
 import {
     pauseBgm,
+    playGameClearBgm,
     playGameBgm,
+    playGameOverBgm,
     resumeBgm,
     stopBgm
 } from './audioManager.js';
@@ -65,7 +67,7 @@ function hundleGameOver() {
 
     gameState = GameState.GAME_OVER;
     started = false;
-    stopBgm();
+    playGameOverBgm();
 }
 
 function handleGameClear() {
@@ -73,7 +75,7 @@ function handleGameClear() {
 
     gameState = GameState.GAME_CLEAR;
     started = false;
-    stopBgm();
+    playGameClearBgm();
 }
 
 function restartGame() {
