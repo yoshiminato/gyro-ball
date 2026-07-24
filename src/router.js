@@ -1,5 +1,5 @@
 import { showTitlePage } from './ui/titlePage.js';
-import { showModeSelectPage } from './ui/modeSelectPage';
+import { showModeSelectPage } from './ui/modeSelectPage.js';
 import { showGameOverPage } from './ui/gameOverPage.js';
 import { showGameClearPage } from './ui/gameClearPage.js';
 
