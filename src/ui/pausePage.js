@@ -5,9 +5,14 @@ import {
 } from '../gameController.js';
 import { GameState } from '../constants.js';
 
+// ポーズボタンとモーダルはゲームごとに生成・破棄する。
 let pauseButton = null;
 let pauseOverlay = null;
 
+/**
+ * ポーズUIとキーボード操作をアプリ起動時に登録する。
+ * @returns {void}
+ */
 export function registerPauseUi() {
     window.addEventListener('game-start', showPauseButton);
     window.addEventListener('game-over', removePauseUi);
@@ -16,6 +21,7 @@ export function registerPauseUi() {
     document.addEventListener('keydown', handleEscapeKey);
 }
 
+/** 現在のゲーム用ポーズボタンを生成する。 */
 function showPauseButton() {
     removePauseUi();
 
@@ -28,6 +34,7 @@ function showPauseButton() {
     document.body.appendChild(pauseButton);
 }
 
+/** ゲームを停止してポーズメニューを表示する。 */
 function openPauseOverlay() {
     if (!pauseGame()) return;
 
@@ -63,12 +70,14 @@ function openPauseOverlay() {
     document.body.appendChild(pauseOverlay);
 }
 
+/** ゲームを再開してポーズメニューを閉じる。 */
 function closePauseOverlay() {
     resumeGame();
     pauseOverlay?.remove();
     pauseOverlay = null;
 }
 
+/** 画面遷移時にポーズ関連UIをすべて削除する。 */
 function removePauseUi() {
     pauseOverlay?.remove();
     pauseButton?.remove();
@@ -76,6 +85,11 @@ function removePauseUi() {
     pauseButton = null;
 }
 
+/**
+ * Escapeキーでポーズ状態を切り替える。
+ * @param {KeyboardEvent} event - キー入力イベント
+ * @returns {void}
+ */
 function handleEscapeKey(event) {
     if (
         event.code !== 'Escape'

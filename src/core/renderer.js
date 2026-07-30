@@ -5,11 +5,14 @@
 import { FIELD_RADIUS } from '../constants.js';
 
 export let renderer, scene, camera;
-export let ballMesh, ballLight, neonLight1, neonLight2;
-export const obstacles = []; // 描画用メッシュとマテリアルの保持
+export let ballLight, neonLight1, neonLight2;
 
 const cubeColor = 0x4488ff;
 
+/**
+ * Three.jsのレンダラー、シーン、カメラ、背景要素を生成する。
+ * @returns {void}
+ */
 export function initRenderer() {
     // レンダラー初期化
     renderer = new THREE.WebGLRenderer({ 
@@ -92,6 +95,11 @@ function createGround() {
     groundGroup.add(boundaryMesh);
 }
 
+/**
+ * プレイヤーボールと追従ライトを生成する。
+ * @param {number} radius - ボール半径
+ * @returns {THREE.Mesh} 生成したボールメッシュ
+ */
 export function createBallMesh(radius) {
     const ballGeo = new THREE.SphereGeometry(radius, 32, 32);
     const ballMesh_mat = new THREE.MeshPhongMaterial({
@@ -100,7 +108,7 @@ export function createBallMesh(radius) {
         shininess: 100,
         specular: 0xffffff
     });
-    ballMesh = new THREE.Mesh(ballGeo, ballMesh_mat);
+    const ballMesh = new THREE.Mesh(ballGeo, ballMesh_mat);
     ballMesh.castShadow = true;
     scene.add(ballMesh);
 
@@ -115,6 +123,17 @@ export function createBallMesh(radius) {
 }
 
 
+/**
+ * 進行面と弱点面を色分けしたCubeメッシュを生成する。
+ * @param {number} x - 初期X座標
+ * @param {number} z - 初期Z座標
+ * @param {number} w - 幅
+ * @param {number} h - 高さ
+ * @param {number} d - 奥行き
+ * @param {number} headFace - 危険面のマテリアル番号
+ * @param {number} weakFace - 弱点面のマテリアル番号
+ * @returns {THREE.Mesh} 生成したCubeメッシュ
+ */
 export function createCubeMesh(
     x,
     z,
@@ -171,15 +190,18 @@ export function createCubeMesh(
 
     mesh.add(edges);
 
-    obstacles.push({
-        mesh,
-        originalColor: col,
-        materials
-    });
-
     return mesh;
 }
 
+/**
+ * Snakeの各物理セグメントに対応する球メッシュを生成する。
+ * @param {number} x - 頭の初期X座標
+ * @param {number} z - 頭の初期Z座標
+ * @param {number} radius - 頭の半径
+ * @param {number} count - セグメント数
+ * @param {number} weakSegmentIndex - 弱点セグメント番号
+ * @returns {THREE.Mesh[]} 生成したメッシュ一覧
+ */
 export function createSnakeMesh(x, z, radius, count, weakSegmentIndex) {
 
     const meshes = [];
@@ -327,12 +349,20 @@ export function createLightRayMesh(radius = 0.12) {
     return mesh;
 }
 
+/**
+ * ウィンドウサイズに描画領域とカメラ比率を合わせる。
+ * @returns {void}
+ */
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
+/**
+ * GPUリソース、Canvas、リサイズイベントを破棄する。
+ * @returns {void}
+ */
 export function destroyRenderer() {
 
     window.removeEventListener('resize', onWindowResize);
@@ -365,8 +395,5 @@ export function destroyRenderer() {
         renderer.domElement.remove();
         renderer = null;
     }
-
-    obstacles.length = 0;
-
 
 }

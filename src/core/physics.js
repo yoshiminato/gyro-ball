@@ -4,14 +4,18 @@
 
 import { FIELD_RADIUS } from '../constants.js';
 
-export let world, ballBody;
-export const obstacleBodies = []; // main.jsや衝突判定で参照用
-let hitCount = 0;
+export let world;
+let ballBody;
 
+// 円形フィールドを構成する静的壁の設定。
 const FIELD_WALL_HEIGHT = 10;
 const FIELD_WALL_THICKNESS = 1;
 const FIELD_WALL_SEGMENTS = 64;
 
+/**
+ * Cannon.jsのワールド、接触材質、地面、外周壁を生成する。
+ * @returns {void}
+ */
 export function initPhysics() {
     world = new CANNON.World();
     world.gravity.set(0, -25, 0);
@@ -80,6 +84,11 @@ function addCircularWall(radius, height, thickness, segmentCount) {
     }
 }
 
+/**
+ * プレイヤーボールの物理ボディを生成する。
+ * @param {number} radius - 球の半径
+ * @returns {CANNON.Body} 生成したボディ
+ */
 export function createBallBody(radius) {
     const ballMat = world.materials.find(m => m.name === 'ball') || new CANNON.Material('ball');
     ballBody = new CANNON.Body({ mass: 1.5, material: ballMat });
@@ -92,17 +101,33 @@ export function createBallBody(radius) {
 }
 
 
-export function createCubeBody(x, z, w, h, d, mass = 2, boxMat) {
-    console.log(`Creating cube body at (${x}, ${z}) with dimensions (${w}, ${h}, ${d}) and mass ${mass}`);
+/**
+ * Cube敵の直方体ボディを生成する。
+ * @param {number} x - 初期X座標
+ * @param {number} z - 初期Z座標
+ * @param {number} w - 幅
+ * @param {number} h - 高さ
+ * @param {number} d - 奥行き
+ * @param {number} mass - 質量
+ * @returns {CANNON.Body} 生成したボディ
+ */
+export function createCubeBody(x, z, w, h, d, mass = 2) {
     const enemyMat = world.materials.find(m => m.name === 'enemy') || new CANNON.Material('enemy');
     const body = new CANNON.Body({ mass: mass, material: enemyMat });
     body.addShape(new CANNON.Box(new CANNON.Vec3(w / 2, h / 2, d / 2)));
     body.position.set(x, h / 2, z);
     world.addBody(body);
-    obstacleBodies.push(body);
     return body;
 }
 
+/**
+ * 大きさの異なる球を距離拘束でつないだSnakeの物理ボディを生成する。
+ * @param {number} x - 頭の初期X座標
+ * @param {number} z - 頭の初期Z座標
+ * @param {number} radius - 頭の半径
+ * @param {number} count - セグメント数
+ * @returns {{bodies: CANNON.Body[], constraints: CANNON.Constraint[]}}
+ */
 export function createSnakeBody(
     x,
     z,
@@ -147,7 +172,6 @@ export function createSnakeBody(
         }
 
         world.addBody(body);
-        obstacleBodies.push(body);
         bodies.push(body);
 
         if (i > 0) {
@@ -173,26 +197,10 @@ export function createSnakeBody(
     };
 }
 
-export function setupCollisionHandler(rendererObstacles, boxMat) {
-    ballBody.addEventListener('collide', (e) => {
-        // 衝突した相手が障害物ボディの配列に含まれているか
-        const isObstacle = obstacleBodies.some(b => b === e.body);
-        if (isObstacle) {
-            hitCount++;
-            // document.getElementById('hits').textContent = hitCount;
-
-            // renderer側のエフェクト対象をIDで探す
-            const obs = rendererObstacles.find(o => o.bodyId === e.body.id);
-            if (obs) {
-                obs.mat.emissive.setHex(0x884400);
-                setTimeout(() => {
-                    obs.mat.emissive.setHex(new THREE.Color(obs.originalColor).multiplyScalar(0.15).getHex());
-                }, 200);
-            }
-        }
-    });
-}
-
+/**
+ * 現在の物理ワールドに属するボディと拘束をすべて破棄する。
+ * @returns {void}
+ */
 export function destroyPhysics() {
     // 物理世界の全てのボディを削除
     while (world.bodies.length > 0) {
@@ -201,6 +209,4 @@ export function destroyPhysics() {
     while (world.constraints.length) {
         world.removeConstraint(world.constraints[0]);
     }
-
-    obstacleBodies.length = 0;
 }

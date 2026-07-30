@@ -1,46 +1,33 @@
-// ============================================================
-// main.js - コントローラー・メインループ
-// ============================================================
-
-import { started, destroyGameFlg, ball, destroyGame, startGame, updateGameState } from './gameController.js';
-
-import { Opponent, Difficulty } from './constants.js';
-
+import {
+    ball,
+    destroyGame,
+    startGame,
+    started,
+    updateGameState
+} from './gameController.js';
 import { registerRouterEvents } from './router.js';
-
-import { 
-    initRenderer, createCubeMesh, renderer, scene, camera,
-    ballLight, neonLight1, neonLight2, obstacles , destroyRenderer
+import {
+    ballLight,
+    camera,
+    neonLight1,
+    neonLight2,
+    renderer,
+    scene
 } from './core/renderer.js';
-
-import { 
-    initPhysics, createBallBody, createCubeBody, world, setupCollisionHandler, destroyPhysics
-} from './core/physics.js';
-
-import { requestGyro, resetCalibration } from './input/gyro.js';
-
-import { registerKeyEvent} from './input/keyboard.js';
-
-import {registerTouchEvent} from './input/touch.js';
-
-import { Ball } from './object/ball.js';
-
-import { Cube } from './object/cube.js';
-
-import { Snake } from './object/snake.js';
+import { registerKeyEvent } from './input/keyboard.js';
+import { registerTouchEvent } from './input/touch.js';
 import { registerPauseUi } from './ui/pausePage.js';
 import { registerBgmEvents } from './audioManager.js';
 import { isMobileDevice } from './util.js';
 
-
+// プレイヤーを背後から追従するカメラの距離と高さ。
 const CAM_DIST = 14;
 const CAM_HEIGHT = 8;
 
 let lastTime = performance.now();
-let totalDist = 0;
 const camTarget = new THREE.Vector3();
 
-
+// アプリ全体で一度だけ登録する画面遷移・UI・音声イベント。
 registerRouterEvents();
 registerPauseUi();
 registerBgmEvents();
@@ -49,6 +36,10 @@ animate();
 
 window.addEventListener('game-start', init);
 
+/**
+ * 端末に応じた操作説明を常設UIへ表示する。
+ * @returns {void}
+ */
 function showControlHint() {
     const controlHint = document.getElementById('keyboard-hint');
     if (!controlHint) return;
@@ -58,48 +49,52 @@ function showControlHint() {
         : '移動：WASD / 矢印キー　ジャンプ：スペースキー';
 }
 
-function init(e) {
-
-    try{
+/**
+ * 選択中のモードでゲームを作り直し、入力対象を初期化する。
+ * リトライ時にも同じ処理を使用する。
+ * @returns {void}
+ */
+function init() {
+    try {
         destroyGame();
+    } catch (error) {
+        console.warn('ゲームの破棄に失敗しました', error);
     }
-    catch(err){
-        console.warn('ゲーム破棄失敗')
-        console.log(err)
-    }
-    try{
+
+    try {
         startGame();
-    }
-    catch(err){
-        console.warn('ゲーム初期化失敗')
-        console.log(err)
+    } catch (error) {
+        console.warn('ゲームの初期化に失敗しました', error);
+        return;
     }
 
-    // snake = new Snake(7, 7);
-    setupCollisionHandler(obstacles);
     setupEvents();
-
-    resetCalibration();
-    requestGyro();
     lastTime = performance.now();
-    
-    // 初回描画
-    renderer.render(scene, camera);
 
+    // 次のrequestAnimationFrameを待たず、生成直後のシーンを表示する。
+    renderer.render(scene, camera);
 }
 
+/**
+ * 現在生成されているボールを各入力モジュールへ渡す。
+ * @returns {void}
+ */
 function setupEvents() {
     registerKeyEvent(ball);
     registerTouchEvent(ball);
 }
 
-
-// メインループ
+/**
+ * 物理・カメラ・照明・描画を更新する常設ループ。
+ * ゲーム停止中も次回開始に備えてrequestAnimationFrame自体は維持する。
+ * @returns {void}
+ */
 function animate() {
     requestAnimationFrame(animate);
-    // if(destroyGameFlg) destroyGame();
     if (!started) return;
+
     const now = performance.now();
+    // タブ復帰直後などの極端に大きい時間差を50msへ制限する。
     const dt = Math.min((now - lastTime) / 1000, 0.05);
     lastTime = now;
 
@@ -108,7 +103,7 @@ function animate() {
     ballLight.position.copy(ball.mesh.position);
     ballLight.position.y += 0.5;
 
-    // カメラ追従
+    // ボールの進行方向に対して後方から滑らかに追従する。
     camTarget.lerp(ball.mesh.position, 0.08);
     const camOffsetX = -Math.sin(ball.heading) * CAM_DIST;
     const camOffsetZ = Math.cos(ball.heading) * CAM_DIST;
@@ -119,7 +114,7 @@ function animate() {
     );
     camera.lookAt(camTarget);
 
-    // ネオンライトアニメーション
+    // 2灯を異なる周期で周回させ、背景に動きを付ける。
     const t = now / 1000;
     neonLight1.position.x = Math.sin(t * 0.3) * 25;
     neonLight1.position.z = Math.cos(t * 0.3) * 25;

@@ -285,7 +285,7 @@ export class TutorialController {
             }
             case 'warningState': {
                 const duration = this.warningStateDuration ?? 2000;
-                const elapsed = Math.max(0, now - (this.waringStartTime ?? now));
+                const elapsed = Math.max(0, now - (this.warningStartedAt ?? now));
                 this.showObjective(
                     'レーザーの予兆',
                     `${this.enemyName}の点滅を確認しよう`,
@@ -314,6 +314,11 @@ export class TutorialController {
         }
     }
 
+    /**
+     * 手順IDから進捗パネル用の表示名を取得する。
+     * @param {string} stepId - 手順ID
+     * @returns {string} 表示名
+     */
     getStepTitle(stepId) {
         return {
             movement: '前進・後進の練習',
@@ -327,6 +332,13 @@ export class TutorialController {
         }[stepId] ?? '練習';
     }
 
+    /**
+     * 現在の目標と0～1の進捗を共通パネルへ表示する。
+     * @param {string} title - 目標名
+     * @param {string} description - 操作説明
+     * @param {string} progressText - 進捗テキスト
+     * @param {number} progress - 0～1の達成率
+     */
     showObjective(title, description, progressText, progress) {
         this.ensureObjectivePanel();
         this.objectiveTitle.textContent = title;
@@ -337,6 +349,7 @@ export class TutorialController {
         this.objectivePanel.hidden = false;
     }
 
+    /** 進捗パネルを初回表示時に生成し、各要素を保持する。 */
     ensureObjectivePanel() {
         if (this.objectivePanel) return;
 
@@ -377,6 +390,7 @@ export class TutorialController {
         this.objectiveProgressFill = progressFill;
     }
 
+    /** 説明モーダル表示中など、進捗パネルが不要な間は隠す。 */
     hideObjective() {
         if (this.objectivePanel) this.objectivePanel.hidden = true;
     }
@@ -601,6 +615,7 @@ export class TutorialController {
         );
     }
 
+    /** 全手順の完了を通知し、モード選択へ戻る導線を表示する。 */
     showTutorialCompletion() {
         this.hideObjective();
         this.showOverlay(
@@ -623,6 +638,13 @@ export class TutorialController {
         );
     }
 
+    /**
+     * チュートリアル共通モーダルを生成する。
+     * @param {string} title - 見出し
+     * @param {string} message - 説明文
+     * @param {string} buttonText - 確認ボタンの文言
+     * @param {Function} onConfirm - 確認後の処理
+     */
     showOverlay(title, message, buttonText, onConfirm) {
         this.removeOverlay();
 
@@ -657,11 +679,13 @@ export class TutorialController {
         this.overlay = overlay;
     }
 
+    /** 現在の説明モーダルを削除する。 */
     removeOverlay() {
         this.overlay?.remove();
         this.overlay = null;
     }
 
+    /** ゲーム離脱時にチュートリアルが生成したDOMをすべて破棄する。 */
     destroyUi() {
         this.removeOverlay();
         this.objectivePanel?.remove();
@@ -672,12 +696,12 @@ export class TutorialController {
         this.objectiveProgressFill = null;
     }
 
-    // 派生クラスで実装する
+    /** 敵種別ごとの物理ボディとメッシュ表示処理。派生クラスで実装する。 */
     showEnemy() {}
 
-    // 派生クラスで実装する
+    /** 敵種別ごとの初期位置復元処理。派生クラスで実装する。 */
     resetEnemyPosition() {}
 
-    // 派生クラスで実装する
+    /** 敵種別ごとの追跡処理。派生クラスで実装する。 */
     chaseTarget() {}
 }

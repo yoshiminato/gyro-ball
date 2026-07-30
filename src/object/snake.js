@@ -4,20 +4,29 @@ import {
     createSnakeMesh,
     createLightRayMesh
 } from "../core/renderer.js";
-import { Difficulty, DifficultyNames, FIELD_RADIUS } from "../constants.js";
+import {
+    Difficulty,
+    DifficultyNames,
+    FIELD_RADIUS,
+    MIN_DAMAGE_IMPACT_SPEED
+} from "../constants.js";
 import { showHpBar, updateHpBar } from "../ui/hpBar.js";
 import { SnakeTutorial } from "../tutorial/snakeTutorial.js";
 import { getGameTime } from "../core/gameClock.js";
 
 export class Snake extends DynamicObject {
 
-    static id = 0;                        // 蛇個体ごとの識別子
-    static MASS = 2;                      // 物理ボディ全体の質量
     static CHASE_FORCE = {                // 難易度ごとの追跡時に与える力
         'Tutorial': 77,
         'Easy': 70,
         'Normal': 77,
         'Hard': 85
+    };
+    static MAX_HP = {                          // 難易度ごとの最大HP
+        'Tutorial': 100,
+        'Easy': 50,
+        'Normal': 90,
+        'Hard': 150
     };
     static CHASE_SWAY_FREQUENCY = 0.8;    // 追跡時に1秒間で左右へ揺れる回数
     static CHASE_SWAY_STRENGTH = 1;    // 追跡方向に対する横方向の力の割合
@@ -30,8 +39,8 @@ export class Snake extends DynamicObject {
     };
     static LIGHT_RAY_SPEED = {            // 光線が伸びる速さ
         'Tutorial': 50,
-        'Easy': 20,
-        'Normal': 110,
+        'Easy': 50,
+        'Normal': 90,
         'Hard': 150
     };
     static LIGHT_RAY_RADIUS = 0.15;       // 光線の半径（描画・当たり判定共通）
@@ -55,7 +64,6 @@ export class Snake extends DynamicObject {
 
         this.radius = 2;            // 各セグメントの半径
         this.segmentCount = 7;      // セグメント数
-        this.id = Snake.id++;       // 個体識別子
         this.difficulty = difficulty;
 
         // 頭以外のセグメントから弱点を1つ選ぶ
@@ -68,8 +76,7 @@ export class Snake extends DynamicObject {
             x,
             z,
             this.radius,
-            this.segmentCount,
-            Snake.MASS
+            this.segmentCount
         );
 
         this.bodies = snake.bodies;
@@ -104,18 +111,8 @@ export class Snake extends DynamicObject {
             this.weakSegmentIndex
         );
 
-        switch (this.difficulty) {
-            case Difficulty.EASY:
-                this.maxHp = 30;
-                break;
-            case Difficulty.NORMAL:
-                this.maxHp = 50;
-                break;
-            case Difficulty.HARD:
-            default:
-                this.maxHp = 100;
-                break;
-        }
+        const difficultyName = DifficultyNames[this.difficulty];
+        this.maxHp = Snake.MAX_HP[difficultyName] ?? Snake.MAX_HP.Hard;
 
         this.hp = this.maxHp;
         this.isBattleFinished = false; // 勝敗が確定したかどうか
@@ -136,6 +133,11 @@ export class Snake extends DynamicObject {
         this.lightRayStoppedAt = 0;
         this.headVisualLift = 0;
         this.headCenterApproach = 0;
+        // 頭部演出として物理ボディへ適用済みの位置差分。
+        this.appliedHeadLift = 0;
+        this.appliedHeadCenterOffsetX = 0;
+        this.appliedHeadCenterOffsetZ = 0;
+        this.isHeadPoseControlled = false;
 
         if (this.difficulty !== Difficulty.TUTORIAL) {
             showHpBar();
@@ -179,17 +181,19 @@ export class Snake extends DynamicObject {
             return;
         }
 
-        let damage = Math.abs(
+        const impactSpeed = Math.abs(
             event.contact.getImpactVelocityAlongNormal()
         );
+
+        if (impactSpeed < MIN_DAMAGE_IMPACT_SPEED) return;
+
+        let damage = impactSpeed;
 
         const isWeakPoint = segmentIndex === this.weakSegmentIndex;
 
         if (isWeakPoint) {
             damage *= Snake.WEAK_SEGMENT_DAMAGE_COEF;
         }
-
-        if (damage <= 0) return;
 
         this.applyDamage(damage);
         updateHpBar((this.hp / this.maxHp) * 100);
@@ -588,7 +592,8 @@ export class Snake extends DynamicObject {
     }
 
     /**
-    * スネークのビジュアルを物理演算の結果に合わせて更新する
+    * レーザー演出中の頭部位置を物理ボディへ適用し、
+    * 全セグメントのビジュアルを物理演算の結果に合わせて更新する
     * @returns {void}
     */
     updateVisuals() {
@@ -612,36 +617,86 @@ export class Snake extends DynamicObject {
             Snake.HEAD_CENTER_APPROACH_LERP
         );
 
-        // 質量を考慮せず、全セグメントのXZ座標の平均を体の中心とする
+        const head = this.bodies[0];
+        const shouldControlHeadPose =
+            isLightRaySequenceActive
+            || this.headVisualLift > 0.01
+            || this.headCenterApproach > 0.001;
+
+        if (shouldControlHeadPose && !this.isHeadPoseControlled) {
+            // 動的ボディのままでは距離拘束に引き戻されるため、
+            // 演出中だけ位置を直接制御できるキネマティックボディにする。
+            head.type = CANNON.Body.KINEMATIC;
+            head.velocity.set(0, 0, 0);
+            head.angularVelocity.set(0, 0, 0);
+            head.updateMassProperties();
+            this.isHeadPoseControlled = true;
+        }
+
+        // 前フレームに演出として加えた差分を除いた頭部の基準位置。
+        const baseHeadX =
+            head.position.x - this.appliedHeadCenterOffsetX;
+        const baseHeadZ =
+            head.position.z - this.appliedHeadCenterOffsetZ;
+
+        // 質量を考慮せず、演出前の頭部を含む全セグメントのXZ平均を求める。
         let bodyCenterX = 0;
         let bodyCenterZ = 0;
 
-        for (const body of this.bodies) {
-            bodyCenterX += body.position.x;
-            bodyCenterZ += body.position.z;
+        for (let i = 0; i < this.bodies.length; i++) {
+            bodyCenterX += i === 0
+                ? baseHeadX
+                : this.bodies[i].position.x;
+            bodyCenterZ += i === 0
+                ? baseHeadZ
+                : this.bodies[i].position.z;
         }
 
         bodyCenterX /= this.bodies.length;
         bodyCenterZ /= this.bodies.length;
+
+        const nextCenterOffsetX =
+            (bodyCenterX - baseHeadX) * this.headCenterApproach;
+        const nextCenterOffsetZ =
+            (bodyCenterZ - baseHeadZ) * this.headCenterApproach;
+
+        // 前フレームから変化した演出量だけを加え、物理挙動による移動は保持する。
+        head.position.x +=
+            nextCenterOffsetX - this.appliedHeadCenterOffsetX;
+        head.position.y +=
+            this.headVisualLift - this.appliedHeadLift;
+        head.position.z +=
+            nextCenterOffsetZ - this.appliedHeadCenterOffsetZ;
+        head.aabbNeedsUpdate = true;
+        head.wakeUp();
+
+        this.appliedHeadLift = this.headVisualLift;
+        this.appliedHeadCenterOffsetX = nextCenterOffsetX;
+        this.appliedHeadCenterOffsetZ = nextCenterOffsetZ;
+
+        if (!shouldControlHeadPose && this.isHeadPoseControlled) {
+            // 演出位置から戻り切った後に、通常の動的な頭部へ復帰する。
+            head.position.x -= this.appliedHeadCenterOffsetX;
+            head.position.y -= this.appliedHeadLift;
+            head.position.z -= this.appliedHeadCenterOffsetZ;
+            this.headVisualLift = 0;
+            this.headCenterApproach = 0;
+            this.appliedHeadLift = 0;
+            this.appliedHeadCenterOffsetX = 0;
+            this.appliedHeadCenterOffsetZ = 0;
+            head.type = CANNON.Body.DYNAMIC;
+            head.updateMassProperties();
+            head.wakeUp();
+            this.isHeadPoseControlled = false;
+        }
 
         // スネークの各セグメントの位置と姿勢を物理演算の結果に合わせて更新
         for (let i = 0; i < this.bodies.length; i++) {
             this.meshes[i].position.copy(
                 this.bodies[i].position
             );
-            // 頭のセグメントは顔の向きに合わせて回転させる
-            if(i == 0) {
-                this.meshes[i].position.x = THREE.MathUtils.lerp(
-                    this.bodies[i].position.x,
-                    bodyCenterX,
-                    this.headCenterApproach
-                );
-                this.meshes[i].position.z = THREE.MathUtils.lerp(
-                    this.bodies[i].position.z,
-                    bodyCenterZ,
-                    this.headCenterApproach
-                );
-                this.meshes[i].position.y += this.headVisualLift;
+            // 頭のセグメントは物理位置を使い、顔の向きだけ独自に設定する。
+            if (i === 0) {
                 this.meshes[i].rotation.set(0, this.faceYaw, 0); 
                 continue;
             }

@@ -1,4 +1,5 @@
 import { world } from '../core/physics.js';
+import { getGameTime } from '../core/gameClock.js';
 import { TutorialController } from './tutorialController.js';
 
 /** Cube用チュートリアル。練習開始まではCubeを物理世界から外す。 */
@@ -13,15 +14,6 @@ export class CubeTutorial extends TutorialController {
         update: 'updateWarningState'
     };
 
-    
-
-    dashStep = {
-        id: "dash",
-        show: "showDashExplanation",
-        begin: "beginDash",
-        update: "updateDash"
-    };
-
     constructor(cube) {
         super(cube, 'Cube', {
             danger: '赤い面',
@@ -32,6 +24,7 @@ export class CubeTutorial extends TutorialController {
         this.steps.push(this.warningStateStep);
     }
 
+    /** 練習開始までCubeを物理ワールドと画面から隠す。 */
     hideEnemy() {
         if (world.bodies.includes(this.enemy.body)) {
             world.removeBody(this.enemy.body);
@@ -40,6 +33,7 @@ export class CubeTutorial extends TutorialController {
         this.enemyVisible = false;
     }
 
+    /** Cubeを初期位置へ戻して物理ワールドと画面へ表示する。 */
     showEnemy() {
         const body = this.enemy.body;
 
@@ -55,6 +49,7 @@ export class CubeTutorial extends TutorialController {
         this.enemyVisible = true;
     }
 
+    /** Cubeの位置・速度・姿勢を戦闘開始時の状態へ戻す。 */
     resetEnemyPosition() {
         const { x, z, h } = this.enemy.constructor.initialPosition;
         const body = this.enemy.body;
@@ -72,43 +67,46 @@ export class CubeTutorial extends TutorialController {
         if (this.enemyVisible) this.enemy.updateVisuals();
     }
 
+    /**
+     * 通常戦闘と同じ追跡処理を練習対象へ適用する。
+     * @param {Ball} ball - 追跡対象
+     */
     chaseTarget(ball) {
         this.enemy.chase(ball);
     }
 
-
+    /** 突進前に点滅する意味を説明する。 */
     showWarningStateExplanation() {
         const title = '点滅状態';
         const description = '点滅状態は敵が突進の準備をしている合図です';
         this.showStepOverlay(title, description);
     }
 
+    /** 点滅状態の実演を開始する。 */
     beginWarningState() {
-        this.waringStateExplanationStartTime = performance.now();
+        const now = getGameTime();
+        this.warningStateExplanationStartedAt = now;
         this.showEnemy();
-        this.enemy.startDashWarning(performance.now());
+        this.enemy.startDashWarning(now);
     }
 
+    /**
+     * 点滅を更新し、実演時間が終わったか判定する。
+     * @returns {boolean} 実演が完了した場合はtrue
+     */
     updateWarningState() {
+        const now = getGameTime();
         // 敵が突進する前にチュートリアルが終了した場合、敵を消す
-        this.enemy.updateDashWarning(performance.now());
-        if(performance.now() - this.waringStateExplanationStartTime > CubeTutorial.WARNING_STATE_EXPLANATION_DURATION) {
+        this.enemy.updateDashWarning(now);
+        if (
+            now - this.warningStateExplanationStartedAt
+                > CubeTutorial.WARNING_STATE_EXPLANATION_DURATION
+        ) {
             this.hideEnemy();
             return true;
         }
         this.enemy.updateVisuals();
         return false;
-    }
-
-    showDashExplanation() {
-        const title = '突進';
-        const description = '点滅状態の後、敵は突進してきます。赤い面に触れるとゲームオーバーです';
-        this.showStepOverlay(title, description);
-    }
-
-    beginDash() {
-        this.showEnemy();
-        this.enemy.startDash(performance.now());
     }
 
 }

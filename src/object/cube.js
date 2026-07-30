@@ -1,9 +1,14 @@
-import { Opponent, Difficulty, DifficultyNames } from '../constants.js';
+import {
+    Difficulty,
+    DifficultyNames,
+    MIN_DAMAGE_IMPACT_SPEED
+} from '../constants.js';
 import { createCubeBody } from '../core/physics.js';
 import { createCubeMesh } from '../core/renderer.js';
 import { DynamicObject } from './dynamicObject.js';
 import { showHpBar, updateHpBar } from '../ui/hpBar.js';
 import { CubeTutorial } from '../tutorial/cubeTutorial.js';
+import { getGameTime } from '../core/gameClock.js';
 
 
 export class Cube extends DynamicObject {
@@ -72,7 +77,7 @@ export class Cube extends DynamicObject {
         
 
         this.dashCooldown = 4000; // 突進のクールダウン時間（ミリ秒）
-        this.lastDashTime = performance.now();
+        this.lastDashTime = getGameTime();
         this.isPreparingDash = false;          // 突進待機中
         this.dashWarningStartedAt = 0;
 
@@ -88,7 +93,6 @@ export class Cube extends DynamicObject {
                 this.maxHp = Cube.MAX_HP.Hard;
                 break;
             default:
-                console.log("default")
                 this.maxHp = 100;
         }
 
@@ -99,7 +103,9 @@ export class Cube extends DynamicObject {
             showHpBar();
         }
 
-        this.body.addEventListener('collide', (e) => this.hundleDamageEvent(e));
+        this.body.addEventListener('collide', (event) => {
+            this.handleDamageEvent(event);
+        });
 
         // Tutorial選択時だけ、Cube専用チュートリアルを開始する
         if (this.difficulty === Difficulty.TUTORIAL) {
@@ -112,7 +118,7 @@ export class Cube extends DynamicObject {
     * @param {CANNON.Event} event - 衝突イベント
     * @returns {void}　
     */
-    hundleDamageEvent(event) {
+    handleDamageEvent(event) {
 
         if (this.isBattleFinished || this.tutorial?.phase === 'completed') return;
 
@@ -121,8 +127,6 @@ export class Cube extends DynamicObject {
 
         // ダメージがない場合は処理を終了
         if(!damage) return;
-        console.log(`Damage received: ${damage}, maxHp: ${this.maxHp}, currentHp: ${this.hp}`);
-
         // ダメージ適用
         this.applyDamage(damage);
         const restHpRate = this.hp / this.maxHp;
@@ -161,10 +165,11 @@ export class Cube extends DynamicObject {
 
             // ゲームオーバー
             const gameOverEvent = new CustomEvent('game-over');
-            console.log('Game Over! Cube hit on the front face.');
             window.dispatchEvent(gameOverEvent);
             return null;
         }
+
+        if (impactSpeed < MIN_DAMAGE_IMPACT_SPEED) return null;
 
         this.lastHitWasWeakPoint = false;
 
@@ -206,7 +211,6 @@ export class Cube extends DynamicObject {
             // cubeの破壊処理? & 勝利イベント
             const gameClearEvent = new CustomEvent('game-clear');
             window.dispatchEvent(gameClearEvent);
-            console.log('Victory! Cube destroyed.');
         }
     }
 
@@ -236,7 +240,7 @@ export class Cube extends DynamicObject {
     */
     updateBehavior(target) {
 
-        const now = performance.now();
+        const now = getGameTime();
 
         // 突進待機中は移動せず、ターゲットの方向を向くだけにする
         if (this.isPreparingDash) {
@@ -374,21 +378,4 @@ export class Cube extends DynamicObject {
         this.applyImpulse(force);
     }
 
-    updateWeakFace(newWeakFace) {
-
-        const normalColor = cubeColors[this.id % cubeColors.length];
-        for (let i = 0; i < 6; i++) {
-            let color = normalColor;
-            if (i === this.headFace) {
-                color = 0xff0000;
-            }
-            if (i === this.weakFace) {
-                color = 0xfff4a3;
-            }
-            this.mesh.material[i].color.setHex(color);
-            this.mesh.material[i].emissive.set(
-                new THREE.Color(color).multiplyScalar(0.2)
-            );
-        }
-    }
 }

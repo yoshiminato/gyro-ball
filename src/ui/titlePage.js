@@ -7,15 +7,11 @@ window.addEventListener('title-exit', () => {
         startOverlay.remove();
 });
 
-// スタート画面の表示
+/**
+ * タイトルとゲーム開始ボタンを持つ初期画面を生成する。
+ * @returns {void}
+ */
 export function showTitlePage() {
-
-    // 背景画像の設定
-    // document.body.style.backgroundImage = "url('asset/img/gameView.png')";
-    // document.body.style.backgroundPosition = "center center";
-    // document.body.style.backgroundRepeat = "no-repeat";
-    // document.body.style.backgroundSize = "cover";
-    // document.body.style.backgroundAttachment = "fixed";
 
     // wrapperの作成
     const startOverlay = document.createElement('div');

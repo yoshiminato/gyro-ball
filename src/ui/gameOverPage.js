@@ -2,10 +2,11 @@ import { Opponent, Difficulty } from '../constants.js';
 import { opponent, difficulty } from '../gameController.js';
 import { getEnumKey } from '../util.js';
 
-export function showGameOverPage(event) {
-
-    console.log('Game Over Page: Displaying game over dialog');
-
+/**
+ * 敗北結果と再開・モード選択ボタンを持つモーダルを表示する。
+ * @returns {void}
+ */
+export function showGameOverPage() {
     // 背景のオーバーレイ
     const overlay = document.createElement('div');
     overlay.classList.add('game-over-overlay');
@@ -45,7 +46,7 @@ export function showGameOverPage(event) {
 
     retryButton.addEventListener('click', () => {
         window.dispatchEvent(new CustomEvent('game-start'));
-        overlay.remove()
+        overlay.remove();
     });
 
     modeSelectButton.addEventListener('click', () => {

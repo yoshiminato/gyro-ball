@@ -40,6 +40,7 @@ export class SnakeTutorial extends TutorialController {
         this.hideEnemy();
     }
 
+    /** Snakeの拘束と全セグメントを物理ワールドから外して非表示にする。 */
     hideEnemy() {
         this.enemy.constraints.forEach((constraint) => {
             if (world.constraints.includes(constraint)) {
@@ -58,6 +59,7 @@ export class SnakeTutorial extends TutorialController {
         this.enemyVisible = false;
     }
 
+    /** Snakeを初期配置へ戻し、拘束と全セグメントを再登録する。 */
     showEnemy() {
         // 頭がz=-6にある初期配置へ戻し、原点のボールと重ならないようにする
         this.resetEnemyPosition();
@@ -79,6 +81,7 @@ export class SnakeTutorial extends TutorialController {
         this.enemyVisible = true;
     }
 
+    /** 全セグメントの位置・姿勢・速度を保存済みの初期状態へ戻す。 */
     resetEnemyPosition() {
         // super()の実行中はまだ初期配置を保存していないため何もしない
         if (!this.initialBodyTransforms) return;
@@ -95,11 +98,20 @@ export class SnakeTutorial extends TutorialController {
             body.wakeUp();
         });
 
+        // 初期座標には頭部演出の差分が含まれないため、適用量も初期化する。
+        this.enemy.headVisualLift = 0;
+        this.enemy.headCenterApproach = 0;
+        this.enemy.appliedHeadLift = 0;
+        this.enemy.appliedHeadCenterOffsetX = 0;
+        this.enemy.appliedHeadCenterOffsetZ = 0;
+        this.enemy.isHeadPoseControlled = false;
+        this.enemy.bodies[0].type = CANNON.Body.DYNAMIC;
+        this.enemy.bodies[0].updateMassProperties();
+
         if (this.enemyVisible) this.enemy.updateVisuals();
     }
 
-
-
+    /** レーザー発射前に点滅する意味を説明し、その場で実演する。 */
     showWarningStateExplanation() {
         const title = '点滅状態';
         const description = '点滅状態は敵がレーザーを放つ準備をしている合図です';
@@ -107,53 +119,71 @@ export class SnakeTutorial extends TutorialController {
         this.showStepOverlay(title, description);
         this.showEnemy();
         const now = getGameTime();
-        this.waringStartTime = now;
+        this.warningStartedAt = now;
         this.enemy.startLightRayWarning(now);
     }
 
+    /**
+     * 説明オーバーレイの待機中も点滅と顔の向きを更新する。
+     * @param {Ball} target - 顔を向ける対象
+     */
     updateWaitingWarningState(target) {
         const now = getGameTime();
         this.enemy.updateLightRayWarning(now);
         this.enemy.faceTarget(target);
     }
 
+    /** 点滅状態の実演時間を初期化する。 */
     beginWarningState() {
-        this.waringStartTime = getGameTime();
-        // this.showEnemy();
+        this.warningStartedAt = getGameTime();
         this.enemy.startLightRayWarning(getGameTime());
     }
 
+    /**
+     * 点滅の実演を進め、規定時間が経過したか判定する。
+     * @param {Ball} target - 顔を向ける対象
+     * @returns {boolean} 実演が完了した場合はtrue
+     */
     updateWarningState(target) {
         this.enemy.updateLightRayWarning(getGameTime());
         this.enemy.faceTarget(target);
-        if (getGameTime() - this.waringStartTime >= this.warningStateDuration) {
-            // this.hideEnemy();
+        if (getGameTime() - this.warningStartedAt >= this.warningStateDuration) {
             return true; 
         }
         return false;
     }
 
+    /** 点滅後に直線状のレーザーが発射されることを説明する。 */
     showLightRayExplanation() {
         const title = '光線';
         const description = '敵がレーザーを放ってきます。移動して回避しましょう';
         this.showStepOverlay(title, description);
     }
 
+    /** レーザー回避練習の予兆状態を初期化する。 */
     beginLightRay() {
         this.warningStateStartTime = getGameTime();
         this.enemy.isPreparingLightRay = false;
         this.enemy.isFiringLightRay = false;
         this.enemy.lightRayMesh.visible = false;
-        // this.showEnemy();
         this.enemy.startLightRayWarning(this.warningStateStartTime);
     }
 
+    /**
+     * 説明確認待ちの間もレーザー予兆を更新する。
+     * @param {Ball} target - 顔を向ける対象
+     */
     updateWhileLightRayWaiting(target) {
         const now = getGameTime();
         this.enemy.updateLightRayWarning(now);
         this.enemy.faceTarget(target);
     }
 
+    /**
+     * 予兆、発射、命中、終了までのレーザー練習を進める。
+     * @param {Ball} target - レーザーの対象
+     * @returns {boolean} 回避練習が完了した場合はtrue
+     */
     updateLightRay(target) {
         const now = getGameTime();
 
@@ -182,7 +212,7 @@ export class SnakeTutorial extends TutorialController {
         return false;
     }
 
-    /** 光線に当たった場合、通常のゲームオーバーにはせず同じ練習をやり直す。 */
+    /** 光線に当たった場合、ゲームオーバーにせず同じ練習をやり直す。 */
     retryLightRayPractice() {
         if (this.dangerNoticeOpen) return;
 
@@ -203,6 +233,10 @@ export class SnakeTutorial extends TutorialController {
         );
     }
 
+    /**
+     * 通常戦闘と同じ蛇行追跡を練習対象へ適用する。
+     * @param {Ball} target - 追跡対象
+     */
     chaseTarget(target) {
         this.enemy.chase(target, getGameTime());
     }

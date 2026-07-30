@@ -2,7 +2,11 @@ import { Opponent, Difficulty } from '../constants.js';
 import { opponent, difficulty } from '../gameController.js';
 import { getEnumKey } from '../util.js';
 
-export function showGameClearPage(event) {
+/**
+ * 勝利結果と再戦・モード選択ボタンを持つモーダルを表示する。
+ * @returns {void}
+ */
+export function showGameClearPage() {
 
     // 背景のオーバーレイ
     const overlay = document.createElement('div');
@@ -17,13 +21,12 @@ export function showGameClearPage(event) {
     title.classList.add('game-clear-title');
     title.textContent = 'GAME CLEAR!';
 
-    // 敵（データがない場合のフォールバック付き）
+    // 対戦結果として選択中の敵と難易度を表示する。
     const opponentText = document.createElement('p');
     opponentText.classList.add('game-clear-text');
 
     opponentText.textContent = `撃破した敵：${getEnumKey(Opponent, opponent)}`;
 
-    // 難易度（データがない場合のフォールバック付き）
     const difficultyText = document.createElement('p');
     difficultyText.classList.add('game-clear-text');
 
@@ -41,15 +44,12 @@ export function showGameClearPage(event) {
     modeSelectButton.classList.add('game-clear-btn', 'game-clear-btn-mode');
     modeSelectButton.textContent = 'モード選択に戻る';
 
-    // 前回の解説を踏まえ、より安全な .remove() でモーダルを削除しています
     retryButton.addEventListener('click', () => {
-        console.log('Game Clear Page: Retrying the game');
         window.dispatchEvent(new CustomEvent('game-start'));
         overlay.remove();
     });
 
     modeSelectButton.addEventListener('click', () => {
-        console.log('Game Clear Page: Returning to mode select page');
         window.dispatchEvent(new CustomEvent('back-to-mode-select'));
         overlay.remove();
     });

@@ -1,6 +1,13 @@
 import { Opponent, Difficulty } from '../constants.js';
 import { updateOpponentAndDifficulty } from '../gameController.js';
+import { requestGyro, resetCalibration } from '../input/gyro.js';
+import { isMobileDevice } from '../util.js';
 
+/**
+ * 対戦相手の紹介と難易度選択UIを生成する。
+ * 現仕様では対戦相手をSnakeに固定する。
+ * @returns {void}
+ */
 export function showModeSelectPage() {
     const modeSelectOverlay = document.createElement('div');
     modeSelectOverlay.id = 'mode-select-overlay';
@@ -97,17 +104,47 @@ export function showModeSelectPage() {
     gameStartBtn.id = 'game-start-btn';
     gameStartBtn.type = 'button';
 
+    const gyroStatus = document.createElement('p');
+    gyroStatus.id = 'gyro-start-status';
+    gyroStatus.setAttribute('role', 'status');
+    gyroStatus.setAttribute('aria-live', 'polite');
+
+    let selectedDifficulty = Difficulty.EASY;
+    let isStarting = false;
+
     difficultyBtns.forEach((button) => {
         button.addEventListener('click', () => updateSelectedElm(button));
     });
 
-    gameStartBtn.addEventListener('click', () => {
+    gameStartBtn.addEventListener('click', async () => {
+        if (isStarting) return;
+
+        if (isMobileDevice()) {
+            isStarting = true;
+            setSelectionEnabled(false);
+            gameStartBtn.textContent = 'ジャイロ調整中…';
+            gyroStatus.textContent =
+                '端末を横向きに持ち、動かさずにお待ちください';
+
+            resetCalibration();
+            const gyroReady = await requestGyro();
+            if (!gyroReady) {
+                isStarting = false;
+                setSelectionEnabled(true);
+                updateStartButtonText();
+                gyroStatus.textContent =
+                    'ジャイロを利用できません。センサーの許可を確認して再試行してください';
+                return;
+            }
+        }
+
         window.dispatchEvent(new CustomEvent('game-start'));
-    }, { once: true });
+    });
 
     modeSelectOverlay.appendChild(titleText);
     modeSelectOverlay.appendChild(selectionPanel);
     modeSelectOverlay.appendChild(gameStartBtn);
+    modeSelectOverlay.appendChild(gyroStatus);
     document.body.appendChild(modeSelectOverlay);
 
     window.addEventListener('game-start', () => {
@@ -117,6 +154,11 @@ export function showModeSelectPage() {
     // 通常プレイへの導線を優先し、「かんたん」を初期選択にする
     updateSelectedElm(easyBtn);
 
+    /**
+     * 選択状態をUIとゲーム設定へ反映する。
+     * @param {HTMLButtonElement} selectedElm - 選択された難易度ボタン
+     * @returns {void}
+     */
     function updateSelectedElm(selectedElm) {
         difficultyBtns.forEach((button) => {
             const isSelected = button === selectedElm;
@@ -124,15 +166,39 @@ export function showModeSelectPage() {
             button.setAttribute('aria-pressed', String(isSelected));
         });
 
-        const selectedDifficulty = Number(selectedElm.dataset.difficulty);
+        selectedDifficulty = Number(selectedElm.dataset.difficulty);
         updateOpponentAndDifficulty(Opponent.SNAKE, selectedDifficulty);
+        updateStartButtonText();
+        gyroStatus.textContent = '';
+    }
+
+    /** 選択中の難易度に合わせて開始ボタンの文言を更新する。 */
+    function updateStartButtonText() {
         gameStartBtn.textContent =
             selectedDifficulty === Difficulty.TUTORIAL
                 ? 'チュートリアル開始'
                 : 'ゲーム開始';
     }
+
+    /**
+     * ジャイロ調整中の重複操作を防ぐため選択UIをまとめて切り替える。
+     * @param {boolean} enabled - 操作を許可する場合はtrue
+     */
+    function setSelectionEnabled(enabled) {
+        gameStartBtn.disabled = !enabled;
+        difficultyBtns.forEach((button) => {
+            button.disabled = !enabled;
+        });
+    }
 }
 
+/**
+ * 難易度値をdatasetへ持つ選択ボタンを生成する。
+ * @param {string} text - 表示テキスト
+ * @param {string} className - 難易度別CSSクラス
+ * @param {number} difficulty - Difficultyの値
+ * @returns {HTMLButtonElement} 生成したボタン
+ */
 function createDifficultyButton(text, className, difficulty) {
     const button = document.createElement('button');
     button.type = 'button';

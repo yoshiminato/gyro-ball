@@ -15,8 +15,6 @@ import {
 } from './audioManager.js';
 
 let started = false;
-let destroyGameFlg = false;
-
 let ball = null;
 let cube = null;
 let snake = null;
@@ -27,20 +25,29 @@ let difficulty = null;
 let gameState = GameState.IDLE;
 let inputEnabledBeforePause = true;
 
-export { started, destroyGameFlg, ball, cube, snake, opponent, difficulty, gameState };
+export { started, ball, cube, snake, opponent, difficulty, gameState };
 
-// ゲームオーバー時には started を false に設定(アニメーションの停止)
-window.addEventListener('game-over', hundleGameOver);
+// 勝敗・画面離脱イベントとゲーム内部状態を同期する。
+window.addEventListener('game-over', handleGameOver);
 window.addEventListener('game-clear', handleGameClear);
 window.addEventListener('back-to-mode-select', returnToModeSelect);
 
 
-// ゲームの難易度と敵を更新
+/**
+ * モード選択画面で選ばれた敵と難易度を保持する。
+ * @param {number} newOpponent - Opponentの値
+ * @param {number} newDifficulty - Difficultyの値
+ * @returns {void}
+ */
 export function updateOpponentAndDifficulty(newOpponent, newDifficulty) {
     opponent = newOpponent;
     difficulty = newDifficulty;
 }
 
+/**
+ * 進行中のゲームを停止し、入力・時計・BGMを一時停止する。
+ * @returns {boolean} ポーズ状態へ移行できた場合はtrue
+ */
 export function pauseGame() {
     if (!started || gameState !== GameState.PLAYING) return false;
 
@@ -52,6 +59,10 @@ export function pauseGame() {
     return true;
 }
 
+/**
+ * ポーズ前の入力状態を復元し、ゲームを再開する。
+ * @returns {boolean} 再開できた場合はtrue
+ */
 export function resumeGame() {
     if (gameState !== GameState.PAUSED) return false;
 
@@ -62,7 +73,7 @@ export function resumeGame() {
     return true;
 }
 
-function hundleGameOver() {
+function handleGameOver() {
     if (gameState !== GameState.PLAYING) return;
 
     gameState = GameState.GAME_OVER;
@@ -78,49 +89,48 @@ function handleGameClear() {
     playGameClearBgm();
 }
 
-function restartGame() {
-    destroyGame();
-    startGame();
-}
-
 function returnToModeSelect() {
     destroyGame();
     gameState = GameState.IDLE;
 }
 
-// 物理演算器とレンダラを削除 & 各種変数を初期化
+/**
+ * 現在のゲームに属するUI・描画・物理オブジェクトを破棄する。
+ * 未初期化状態から呼ばれても安全に終了できる。
+ * @returns {void}
+ */
 export function destroyGame() {
     started = false;
     stopBgm();
     resetGameClock();
     cube?.tutorial?.destroyUi();
     snake?.tutorial?.destroyUi();
-    destroyGameFlg = false;
-    try{
+    try {
         destroyRenderer();
-    } catch(err){
-        console.warn('レンダラー破棄失敗')
+    } catch (error) {
+        console.warn('レンダラーの破棄に失敗しました', error);
     }
-    try{
+    try {
         destroyPhysics();
-    } catch(err){
-        console.warn('物理エンジン破棄失敗')
+    } catch (error) {
+        console.warn('物理エンジンの破棄に失敗しました', error);
     }
     ball = null;
     cube = null;
     snake = null;
 }
 
-/// 物理演算器とレンダラを初期化
-export function startGame(){
+/**
+ * 選択済みのモードに合わせて描画・物理・プレイヤー・敵を生成する。
+ * @returns {void}
+ */
+export function startGame() {
     resetGameClock();
     started = true;
     gameState = GameState.PLAYING;
     initRenderer();
     initPhysics();
     playGameBgm(Number(difficulty) === Difficulty.TUTORIAL);
-
-    console.log(`Starting game with difficulty: ${difficulty}, opponent: ${opponent}`);
 
     ball = new Ball();
 
@@ -129,8 +139,7 @@ export function startGame(){
         ball.setInputEnabled(false);
     }
 
-    switch(Number(opponent)){
-        
+    switch (Number(opponent)) {
         case Opponent.CUBE:
             cube = new Cube(difficulty);
             break;
@@ -140,32 +149,43 @@ export function startGame(){
     }
 }
 
-function judgeCanJump(world){
+/**
+ * ボール下側に十分上向きの接触面があるかを調べる。
+ * 壁への横接触ではジャンプ可能にしない。
+ * @param {CANNON.World} physicsWorld - 判定対象の物理ワールド
+ * @returns {boolean} 接地している場合はtrue
+ */
+function judgeCanJump(physicsWorld) {
     const normal = new CANNON.Vec3();
-    for(const c of world.contacts){
-        if (c.bi !== this.body && c.bj !== this.body)
-        continue;
-        const opponent = (c.bi === this.body) ? c.bj : c.bi;
-        if (c.bi === this.body)
+    for (const c of physicsWorld.contacts) {
+        if (c.bi !== ball.body && c.bj !== ball.body) continue;
+
+        if (c.bi === ball.body) {
             c.ni.negate(normal);
-        else
+        } else {
             normal.copy(c.ni);
-        if (normal.y < 0.5)
-            continue;
+        }
+
+        if (normal.y < 0.5) continue;
         return true;
     }
     return false;
 }
 
 
+/**
+ * 1フレーム分のプレイヤー・敵・物理演算を進める。
+ * @param {number} dt - 前フレームからの経過秒数
+ * @returns {void}
+ */
 export function updateGameState(dt) {
     if (!started || gameState !== GameState.PLAYING) return;
 
     // ジャンプ可能判定
-    ball.canJump = judgeCanJump.call(ball, world);
+    ball.canJump = judgeCanJump(world);
     ball.update(dt);
 
-    switch(Number(opponent)){
+    switch (Number(opponent)) {
         case Opponent.CUBE:
             if(cube) cube.update(ball);
             break;
@@ -175,5 +195,4 @@ export function updateGameState(dt) {
     }
 
     world.step(1 / 60, dt, 3);
-
 }

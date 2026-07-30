@@ -1,4 +1,7 @@
-// 動作端末いがモバイルかどうかを判定
+/**
+ * User-Agentからジャイロ操作を案内するモバイル端末か判定する。
+ * @returns {boolean} iOSまたはAndroid端末ならtrue
+ */
 export function isMobileDevice() {
 
   const ua = navigator.userAgent.toLowerCase();
@@ -8,8 +11,11 @@ export function isMobileDevice() {
 }
 
 
-// 全画面 & 横画面
-export async function setupGameScreen(e){
+/**
+ * 対応端末では全画面・横向きを要求し、成否にかかわらずモード選択へ進む。
+ * @returns {Promise<void>}
+ */
+export async function setupGameScreen() {
     if (typeof document.documentElement.requestFullscreen === 'function') {
         try {
             // 画面を全画面にする
@@ -39,7 +45,12 @@ export async function setupGameScreen(e){
 }
 
 
-// 列挙型の値からキーを取得する
+/**
+ * 列挙オブジェクトの数値から表示用キーを逆引きする。
+ * @param {Object<string, number>} enumObject - 検索対象の列挙オブジェクト
+ * @param {number|string} value - 検索する値
+ * @returns {string} 一致したキー。存在しない場合はUNKNOWN
+ */
 export function getEnumKey(enumObject, value) {
     const numberValue = Number(value);
 

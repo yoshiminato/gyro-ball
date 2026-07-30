@@ -4,14 +4,16 @@ import { createBallBody } from '../core/physics.js';
 import { createBallMesh } from '../core/renderer.js';
 import { DynamicObject } from './dynamicObject.js';
 
-
+/**
+ * キーボードまたはジャイロ入力で操作するプレイヤーボール。
+ */
 export class Ball extends DynamicObject{
 
     static BALL_R = 1;
     static FORCE_SCALE = 60;
     static HEADING_SCALE = 2.0;
     static MAX_VEL = 15;
-    static JUMP_FORCE = 50;
+    static JUMP_FORCE = 30;
 
     initialPosition = { x: 0, y: Ball.BALL_R + 1, z: 0 };
     initialHeading = 0;
@@ -64,7 +66,10 @@ export class Ball extends DynamicObject{
         }
     }
 
-    // ジャンプ
+    /**
+     * 接地中に上向きの力積を加える。
+     * @returns {void}
+     */
     triggerJump() {
         if (!this.inputEnabled) return;
         if(!this.canJump) return;
@@ -74,7 +79,11 @@ export class Ball extends DynamicObject{
         this.jumpCount++;
     }
 
-    // 入力に応じて力を計算
+    /**
+     * 現在有効な入力方式から推進力を求める。
+     * @param {number} dt - 前フレームからの経過秒数
+     * @returns {CANNON.Vec3} ボールへ加える力
+     */
     calculateForce(dt){
         if (!this.inputEnabled) {
             return new CANNON.Vec3(0, 0, 0);
@@ -88,14 +97,25 @@ export class Ball extends DynamicObject{
         return force;    
     }
 
-    // 速度制限
+    /**
+     * 水平面の合成速度へ上限を設ける。
+     * ジャンプと落下の操作感を保つため、Y方向の速度は変更しない。
+     */
     clampVelocity() {
         const v = this.body.velocity;
-        if (v.length() > Ball.MAX_VEL) {
-            v.scale(Ball.MAX_VEL / v.length(), v);
-        }
+        const horizontalSpeed = Math.hypot(v.x, v.z);
+        if (horizontalSpeed <= Ball.MAX_VEL) return;
+
+        const scale = Ball.MAX_VEL / horizontalSpeed;
+        v.x *= scale;
+        v.z *= scale;
     }
 
+    /**
+     * 入力、速度制限、描画同期を1フレーム分更新する。
+     * @param {number} dt - 前フレームからの経過秒数
+     * @returns {void}
+     */
     update(dt){
         // 物理演算
         const forceVector = this.calculateForce(dt);
