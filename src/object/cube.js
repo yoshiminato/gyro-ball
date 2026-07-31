@@ -9,6 +9,7 @@ import { DynamicObject } from './dynamicObject.js';
 import { showHpBar, updateHpBar } from '../ui/hpBar.js';
 import { CubeTutorial } from '../tutorial/cubeTutorial.js';
 import { getGameTime } from '../core/gameClock.js';
+import { playEnemyHitSfx } from '../audioManager.js';
 
 
 export class Cube extends DynamicObject {
@@ -129,6 +130,7 @@ export class Cube extends DynamicObject {
         if(!damage) return;
         // ダメージ適用
         this.applyDamage(damage);
+        playEnemyHitSfx(this.lastHitWasWeakPoint);
         const restHpRate = this.hp / this.maxHp;
         updateHpBar(restHpRate * 100);
         this.tutorial?.notifyDamage(damage, {

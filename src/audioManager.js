@@ -3,9 +3,15 @@ const tracks = {
     menu: createTrack('asset/audio/dark_things_loop.mp3', 0.3),
     game: createTrack('asset/audio/fight_looped.wav', 0.28),
     tutorial: createTrack('asset/audio/synthwavehouse.ogg', 0.22),
-    gameClear: createTrack('asset/audio/winfretless.ogg', 0.4, false),
-    gameOver: createTrack('asset/audio/GameOver.ogg', 0.4, false)
+    gameClear: createTrack('asset/audio/winfretless.ogg', 0.5, false),
+    gameOver: createTrack('asset/audio/GameOver.ogg', 0.25, false)
 };
+
+const enemyHitSound = createTrack(
+    new URL('../asset/audio/enemy-hit.ogg', import.meta.url).href,
+    0.9,
+    false
+);
 
 let currentTrack = null;
 let playbackRequested = false;
@@ -114,4 +120,24 @@ export function stopBgm() {
     currentTrack.pause();
     currentTrack.currentTime = 0;
     currentTrack = null;
+}
+
+/**
+ * 敵へダメージが入った時の効果音を再生する。
+ * 連続攻撃でも前の音を止めないよう、再生ごとにAudio要素を複製する。
+ * @param {boolean} isWeakPoint - 弱点への攻撃ならtrue
+ * @returns {void}
+ */
+export function playEnemyHitSfx(isWeakPoint = false) {
+    const sound = enemyHitSound.cloneNode();
+    sound.volume = enemyHitSound.volume;
+    sound.playbackRate = isWeakPoint ? 1.12 : 1;
+    sound.play().catch((error) => {
+        if (
+            error?.name !== 'NotAllowedError'
+            && error?.name !== 'AbortError'
+        ) {
+            console.warn('攻撃効果音を再生できませんでした', error);
+        }
+    });
 }

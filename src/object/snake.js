@@ -13,6 +13,7 @@ import {
 import { showHpBar, updateHpBar } from "../ui/hpBar.js";
 import { SnakeTutorial } from "../tutorial/snakeTutorial.js";
 import { getGameTime } from "../core/gameClock.js";
+import { playEnemyHitSfx } from "../audioManager.js";
 
 export class Snake extends DynamicObject {
 
@@ -196,6 +197,7 @@ export class Snake extends DynamicObject {
         }
 
         this.applyDamage(damage);
+        playEnemyHitSfx(isWeakPoint);
         updateHpBar((this.hp / this.maxHp) * 100);
         this.tutorial?.notifyDamage(damage, { isWeakPoint });
     }
