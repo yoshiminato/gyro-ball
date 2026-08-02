@@ -48,16 +48,15 @@
     GAME_CLEAR: 4
   };
   var FIELD_RADIUS = 50;
+  var MIN_DAMAGE_IMPACT_SPEED = 3;
 
   // src/core/renderer.js
   var renderer;
   var scene;
   var camera;
-  var ballMesh;
   var ballLight;
   var neonLight1;
   var neonLight2;
-  var obstacles = [];
   var cubeColor = 4491519;
   function initRenderer() {
     renderer = new THREE.WebGLRenderer({
@@ -131,7 +130,7 @@
       shininess: 100,
       specular: 16777215
     });
-    ballMesh = new THREE.Mesh(ballGeo, ballMesh_mat);
+    const ballMesh = new THREE.Mesh(ballGeo, ballMesh_mat);
     ballMesh.castShadow = true;
     scene.add(ballMesh);
     const lineGeo = new THREE.EdgesGeometry(new THREE.OctahedronGeometry(radius * 0.8));
@@ -174,11 +173,6 @@
       })
     );
     mesh.add(edges);
-    obstacles.push({
-      mesh,
-      originalColor: col,
-      materials
-    });
     return mesh;
   }
   function createSnakeMesh(x, z, radius, count, weakSegmentIndex) {
@@ -314,14 +308,11 @@
       renderer.domElement.remove();
       renderer = null;
     }
-    obstacles.length = 0;
   }
 
   // src/core/physics.js
   var world;
   var ballBody;
-  var obstacleBodies = [];
-  var hitCount = 0;
   var FIELD_WALL_HEIGHT = 10;
   var FIELD_WALL_THICKNESS = 1;
   var FIELD_WALL_SEGMENTS = 64;
@@ -382,14 +373,12 @@
     world.addBody(ballBody);
     return ballBody;
   }
-  function createCubeBody(x, z, w, h, d, mass = 2, boxMat) {
-    console.log(`Creating cube body at (${x}, ${z}) with dimensions (${w}, ${h}, ${d}) and mass ${mass}`);
+  function createCubeBody(x, z, w, h, d, mass = 2) {
     const enemyMat = world.materials.find((m) => m.name === "enemy") || new CANNON.Material("enemy");
     const body = new CANNON.Body({ mass, material: enemyMat });
     body.addShape(new CANNON.Box(new CANNON.Vec3(w / 2, h / 2, d / 2)));
     body.position.set(x, h / 2, z);
     world.addBody(body);
-    obstacleBodies.push(body);
     return body;
   }
   function createSnakeBody(x, z, radius, count) {
@@ -420,7 +409,6 @@
         );
       }
       world.addBody(body);
-      obstacleBodies.push(body);
       bodies.push(body);
       if (i > 0) {
         const prevR = radii[i - 1];
@@ -440,21 +428,6 @@
       constraints
     };
   }
-  function setupCollisionHandler(rendererObstacles, boxMat) {
-    ballBody.addEventListener("collide", (e) => {
-      const isObstacle = obstacleBodies.some((b) => b === e.body);
-      if (isObstacle) {
-        hitCount++;
-        const obs = rendererObstacles.find((o) => o.bodyId === e.body.id);
-        if (obs) {
-          obs.mat.emissive.setHex(8930304);
-          setTimeout(() => {
-            obs.mat.emissive.setHex(new THREE.Color(obs.originalColor).multiplyScalar(0.15).getHex());
-          }, 200);
-        }
-      }
-    });
-  }
   function destroyPhysics() {
     while (world.bodies.length > 0) {
       world.removeBody(world.bodies[0]);
@@ -462,7 +435,6 @@
     while (world.constraints.length) {
       world.removeConstraint(world.constraints[0]);
     }
-    obstacleBodies.length = 0;
   }
 
   // src/util.js
@@ -470,7 +442,7 @@
     const ua = navigator.userAgent.toLowerCase();
     return /iphone|ipad|ipod|android/.test(ua);
   }
-  function setupGameScreen(e) {
+  function setupGameScreen() {
     return __async(this, null, function* () {
       var _a;
       if (typeof document.documentElement.requestFullscreen === "function") {
@@ -508,21 +480,29 @@
   var gyroCalibrated = false;
   var lastGamma = Infinity;
   var lastBeta = Infinity;
+  var resolveCalibration = null;
+  var MAX_FORWARD_TILT = 25;
   function requestGyro() {
-    try {
+    return __async(this, null, function* () {
+      if (gyroEnabled) return true;
       window.removeEventListener("deviceorientation", saveZeroPoint, true);
-    } catch (error) {
-      console.error("Error occurred while removing event listener:", error);
-    }
-    if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
-      DeviceOrientationEvent.requestPermission().then((perm) => {
-        if (perm === "granted") {
-          enableGyro();
+      if (typeof DeviceOrientationEvent === "undefined" || !isMobileDevice()) {
+        return false;
+      }
+      if (typeof DeviceOrientationEvent.requestPermission === "function") {
+        try {
+          const permission = yield DeviceOrientationEvent.requestPermission();
+          if (permission !== "granted") return false;
+        } catch (error) {
+          console.warn("\u30B8\u30E3\u30A4\u30ED\u30BB\u30F3\u30B5\u30FC\u306E\u5229\u7528\u8A31\u53EF\u3092\u53D6\u5F97\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F", error);
+          return false;
         }
-      }).catch(console.error);
-    } else if (isMobileDevice()) {
-      enableGyro();
-    }
+      }
+      return new Promise((resolve) => {
+        resolveCalibration = resolve;
+        enableGyro();
+      });
+    });
   }
   function enableGyro() {
     window.addEventListener("deviceorientation", saveZeroPoint, true);
@@ -531,8 +511,6 @@
     if (e.beta === null || e.gamma === null) return;
     gyroBeta = e.beta || 0;
     gyroGamma = e.gamma || 0;
-    const beta2zero = gyroBeta - gyroBetaZero;
-    const gamma2zero = gyroGamma - gyroGammaZero;
     if (gyroCalibrated) return;
     const dBeta = Math.abs(e.beta - lastBeta);
     const dGamma = Math.abs(e.gamma - lastGamma);
@@ -546,8 +524,12 @@
     gyroGammaZero = e.gamma || 0;
     gyroCalibrated = true;
     gyroEnabled = true;
+    resolveCalibration == null ? void 0 : resolveCalibration(true);
+    resolveCalibration = null;
   }
   function resetCalibration() {
+    resolveCalibration == null ? void 0 : resolveCalibration(false);
+    resolveCalibration = null;
     gyroEnabled = false;
     gyroCalibrated = false;
     lastBeta = Infinity;
@@ -561,8 +543,11 @@
     const headingDelta = calculateHeadingDeltaFromGyro(dt);
     ball2.heading += headingDelta;
     const heading = ball2.heading;
-    const gamma2zero = Math.max(-45, Math.min(45, gyroGamma - gyroGammaZero));
-    const forwardForce = gamma2zero / 45 * Ball.FORCE_SCALE;
+    const gamma2zero = Math.max(
+      -MAX_FORWARD_TILT,
+      Math.min(MAX_FORWARD_TILT, gyroGamma - gyroGammaZero)
+    );
+    const forwardForce = gamma2zero / MAX_FORWARD_TILT * Ball.FORCE_SCALE;
     const fx = Math.sin(heading) * forwardForce;
     const fz = -Math.cos(heading) * forwardForce;
     return new CANNON.Vec3(fx, 0, fz);
@@ -624,20 +609,43 @@
       this.mesh = null;
       this.heading = 0;
     }
-    updateVisuals(newHeading) {
+    /**
+     * 物理ボディの位置と姿勢を描画メッシュへ同期する。
+     * @returns {void}
+     */
+    updateVisuals() {
       this.mesh.position.copy(this.body.position);
       this.mesh.quaternion.copy(this.body.quaternion);
     }
+    /**
+     * 指定ボディの重心または指定点へ継続力を加える。
+     * @param {CANNON.Vec3} force - 加える力
+     * @param {CANNON.Body} body - 対象ボディ
+     * @param {CANNON.Vec3|null} point - 力を加えるワールド座標
+     * @returns {void}
+     */
     applyForce(force, body = this.body, point = null) {
       if (force.x == 0 && force.y == 0 && force.z == 0) return;
       if (!point) point = body.position;
       body.applyForce(force, point);
     }
+    /**
+     * 指定ボディへ瞬間的な力を加える。
+     * @param {CANNON.Vec3} force - 加える力積
+     * @param {CANNON.Body} body - 対象ボディ
+     * @param {CANNON.Vec3|null} point - 力積を加えるワールド座標
+     * @returns {void}
+     */
     applyImpulse(force, body = this.body, point = null) {
       if (force.x == 0 && force.y == 0 && force.z == 0) return;
       if (!point) point = body.position;
       body.applyImpulse(force, point);
     }
+    /**
+     * 追跡処理用に対象の水平座標だけを返す。
+     * @param {DynamicObject} target - 追跡対象
+     * @returns {{x: number, z: number}} 水平座標
+     */
     getTargetPosition(target) {
       const p = target.body.position;
       return {
@@ -686,7 +694,10 @@
         this.body.angularVelocity.set(0, 0, 0);
       }
     }
-    // ジャンプ
+    /**
+     * 接地中に上向きの力積を加える。
+     * @returns {void}
+     */
     triggerJump() {
       if (!this.inputEnabled) return;
       if (!this.canJump) return;
@@ -695,7 +706,11 @@
       this.canJump = false;
       this.jumpCount++;
     }
-    // 入力に応じて力を計算
+    /**
+     * 現在有効な入力方式から推進力を求める。
+     * @param {number} dt - 前フレームからの経過秒数
+     * @returns {CANNON.Vec3} ボールへ加える力
+     */
     calculateForce(dt) {
       if (!this.inputEnabled) {
         return new CANNON.Vec3(0, 0, 0);
@@ -707,13 +722,23 @@
         force = calculateForceFromKeys(this, dt);
       return force;
     }
-    // 速度制限
+    /**
+     * 水平面の合成速度へ上限を設ける。
+     * ジャンプと落下の操作感を保つため、Y方向の速度は変更しない。
+     */
     clampVelocity() {
       const v = this.body.velocity;
-      if (v.length() > _Ball.MAX_VEL) {
-        v.scale(_Ball.MAX_VEL / v.length(), v);
-      }
+      const horizontalSpeed = Math.hypot(v.x, v.z);
+      if (horizontalSpeed <= _Ball.MAX_VEL) return;
+      const scale = _Ball.MAX_VEL / horizontalSpeed;
+      v.x *= scale;
+      v.z *= scale;
     }
+    /**
+     * 入力、速度制限、描画同期を1フレーム分更新する。
+     * @param {number} dt - 前フレームからの経過秒数
+     * @returns {void}
+     */
     update(dt) {
       const forceVector = this.calculateForce(dt);
       this.applyForce(forceVector);
@@ -725,7 +750,7 @@
   __publicField(_Ball, "FORCE_SCALE", 60);
   __publicField(_Ball, "HEADING_SCALE", 2);
   __publicField(_Ball, "MAX_VEL", 15);
-  __publicField(_Ball, "JUMP_FORCE", 50);
+  __publicField(_Ball, "JUMP_FORCE", 30);
   var Ball = _Ball;
 
   // src/ui/hpBar.js
@@ -1018,7 +1043,7 @@
         }
         case "warningState": {
           const duration = (_b = this.warningStateDuration) != null ? _b : 2e3;
-          const elapsed = Math.max(0, now - ((_c = this.waringStartTime) != null ? _c : now));
+          const elapsed = Math.max(0, now - ((_c = this.warningStartedAt) != null ? _c : now));
           this.showObjective(
             "\u30EC\u30FC\u30B6\u30FC\u306E\u4E88\u5146",
             `${this.enemyName}\u306E\u70B9\u6EC5\u3092\u78BA\u8A8D\u3057\u3088\u3046`,
@@ -1044,6 +1069,11 @@
         }
       }
     }
+    /**
+     * 手順IDから進捗パネル用の表示名を取得する。
+     * @param {string} stepId - 手順ID
+     * @returns {string} 表示名
+     */
     getStepTitle(stepId) {
       var _a;
       return (_a = {
@@ -1057,6 +1087,13 @@
         lightRay: "\u30EC\u30FC\u30B6\u30FC\u56DE\u907F"
       }[stepId]) != null ? _a : "\u7DF4\u7FD2";
     }
+    /**
+     * 現在の目標と0～1の進捗を共通パネルへ表示する。
+     * @param {string} title - 目標名
+     * @param {string} description - 操作説明
+     * @param {string} progressText - 進捗テキスト
+     * @param {number} progress - 0～1の達成率
+     */
     showObjective(title, description, progressText, progress) {
       this.ensureObjectivePanel();
       this.objectiveTitle.textContent = title;
@@ -1065,6 +1102,7 @@
       this.objectiveProgressFill.style.width = `${Math.max(0, Math.min(progress, 1)) * 100}%`;
       this.objectivePanel.hidden = false;
     }
+    /** 進捗パネルを初回表示時に生成し、各要素を保持する。 */
     ensureObjectivePanel() {
       if (this.objectivePanel) return;
       const panel = document.createElement("aside");
@@ -1095,6 +1133,7 @@
       this.objectiveProgressText = progressText;
       this.objectiveProgressFill = progressFill;
     }
+    /** 説明モーダル表示中など、進捗パネルが不要な間は隠す。 */
     hideObjective() {
       if (this.objectivePanel) this.objectivePanel.hidden = true;
     }
@@ -1263,6 +1302,7 @@
         }
       );
     }
+    /** 全手順の完了を通知し、モード選択へ戻る導線を表示する。 */
     showTutorialCompletion() {
       this.hideObjective();
       this.showOverlay(
@@ -1283,6 +1323,13 @@
         () => this.beginCurrentStep()
       );
     }
+    /**
+     * チュートリアル共通モーダルを生成する。
+     * @param {string} title - 見出し
+     * @param {string} message - 説明文
+     * @param {string} buttonText - 確認ボタンの文言
+     * @param {Function} onConfirm - 確認後の処理
+     */
     showOverlay(title, message, buttonText, onConfirm) {
       this.removeOverlay();
       const overlay = document.createElement("div");
@@ -1309,11 +1356,13 @@
       document.body.appendChild(overlay);
       this.overlay = overlay;
     }
+    /** 現在の説明モーダルを削除する。 */
     removeOverlay() {
       var _a;
       (_a = this.overlay) == null ? void 0 : _a.remove();
       this.overlay = null;
     }
+    /** ゲーム離脱時にチュートリアルが生成したDOMをすべて破棄する。 */
     destroyUi() {
       var _a;
       this.removeOverlay();
@@ -1324,13 +1373,13 @@
       this.objectiveProgressText = null;
       this.objectiveProgressFill = null;
     }
-    // 派生クラスで実装する
+    /** 敵種別ごとの物理ボディとメッシュ表示処理。派生クラスで実装する。 */
     showEnemy() {
     }
-    // 派生クラスで実装する
+    /** 敵種別ごとの初期位置復元処理。派生クラスで実装する。 */
     resetEnemyPosition() {
     }
-    // 派生クラスで実装する
+    /** 敵種別ごとの追跡処理。派生クラスで実装する。 */
     chaseTarget() {
     }
   };
@@ -1355,15 +1404,10 @@
         begin: "beginWarningState",
         update: "updateWarningState"
       });
-      __publicField(this, "dashStep", {
-        id: "dash",
-        show: "showDashExplanation",
-        begin: "beginDash",
-        update: "updateDash"
-      });
       this.hideEnemy();
       this.steps.push(this.warningStateStep);
     }
+    /** 練習開始までCubeを物理ワールドと画面から隠す。 */
     hideEnemy() {
       if (world.bodies.includes(this.enemy.body)) {
         world.removeBody(this.enemy.body);
@@ -1371,6 +1415,7 @@
       this.enemy.mesh.visible = false;
       this.enemyVisible = false;
     }
+    /** Cubeを初期位置へ戻して物理ワールドと画面へ表示する。 */
     showEnemy() {
       const body = this.enemy.body;
       this.resetEnemyPosition();
@@ -1381,6 +1426,7 @@
       this.enemy.updateVisuals();
       this.enemyVisible = true;
     }
+    /** Cubeの位置・速度・姿勢を戦闘開始時の状態へ戻す。 */
     resetEnemyPosition() {
       const { x, z, h } = this.enemy.constructor.initialPosition;
       const body = this.enemy.body;
@@ -1395,40 +1441,137 @@
       this.enemy.yaw = 0;
       if (this.enemyVisible) this.enemy.updateVisuals();
     }
+    /**
+     * 通常戦闘と同じ追跡処理を練習対象へ適用する。
+     * @param {Ball} ball - 追跡対象
+     */
     chaseTarget(ball2) {
       this.enemy.chase(ball2);
     }
+    /** 突進前に点滅する意味を説明する。 */
     showWarningStateExplanation() {
       const title = "\u70B9\u6EC5\u72B6\u614B";
       const description = "\u70B9\u6EC5\u72B6\u614B\u306F\u6575\u304C\u7A81\u9032\u306E\u6E96\u5099\u3092\u3057\u3066\u3044\u308B\u5408\u56F3\u3067\u3059";
       this.showStepOverlay(title, description);
     }
+    /** 点滅状態の実演を開始する。 */
     beginWarningState() {
-      this.waringStateExplanationStartTime = performance.now();
+      const now = getGameTime();
+      this.warningStateExplanationStartedAt = now;
       this.showEnemy();
-      this.enemy.startDashWarning(performance.now());
+      this.enemy.startDashWarning(now);
     }
+    /**
+     * 点滅を更新し、実演時間が終わったか判定する。
+     * @returns {boolean} 実演が完了した場合はtrue
+     */
     updateWarningState() {
-      this.enemy.updateDashWarning(performance.now());
-      if (performance.now() - this.waringStateExplanationStartTime > _CubeTutorial.WARNING_STATE_EXPLANATION_DURATION) {
+      const now = getGameTime();
+      this.enemy.updateDashWarning(now);
+      if (now - this.warningStateExplanationStartedAt > _CubeTutorial.WARNING_STATE_EXPLANATION_DURATION) {
         this.hideEnemy();
         return true;
       }
       this.enemy.updateVisuals();
       return false;
     }
-    showDashExplanation() {
-      const title = "\u7A81\u9032";
-      const description = "\u70B9\u6EC5\u72B6\u614B\u306E\u5F8C\u3001\u6575\u306F\u7A81\u9032\u3057\u3066\u304D\u307E\u3059\u3002\u8D64\u3044\u9762\u306B\u89E6\u308C\u308B\u3068\u30B2\u30FC\u30E0\u30AA\u30FC\u30D0\u30FC\u3067\u3059";
-      this.showStepOverlay(title, description);
-    }
-    beginDash() {
-      this.showEnemy();
-      this.enemy.startDash(performance.now());
-    }
   };
   __publicField(_CubeTutorial, "WARNING_STATE_EXPLANATION_DURATION", 2e3);
   var CubeTutorial = _CubeTutorial;
+
+  // src/audioManager.js
+  var import_meta = {};
+  var tracks = {
+    menu: createTrack("asset/audio/dark_things_loop.mp3", 0.3),
+    game: createTrack("asset/audio/fight_looped.wav", 0.28),
+    tutorial: createTrack("asset/audio/synthwavehouse.ogg", 0.22),
+    gameClear: createTrack("asset/audio/winfretless.ogg", 0.5, false),
+    gameOver: createTrack("asset/audio/GameOver.ogg", 0.25, false)
+  };
+  var enemyHitSound = createTrack(
+    new URL("../asset/audio/enemy-hit.ogg", import_meta.url).href,
+    0.9,
+    false
+  );
+  var currentTrack = null;
+  var playbackRequested = false;
+  function createTrack(src, volume, loop = true) {
+    const audio = new Audio(src);
+    audio.loop = loop;
+    audio.preload = "auto";
+    audio.volume = volume;
+    audio.addEventListener("ended", () => {
+      if (currentTrack === audio) playbackRequested = false;
+    });
+    return audio;
+  }
+  function startPlayback() {
+    return __async(this, null, function* () {
+      if (!currentTrack || !playbackRequested) return;
+      try {
+        yield currentTrack.play();
+      } catch (error) {
+        if ((error == null ? void 0 : error.name) !== "NotAllowedError" && (error == null ? void 0 : error.name) !== "AbortError") {
+          console.warn("BGM\u3092\u518D\u751F\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F", error);
+        }
+      }
+    });
+  }
+  function playTrack(track) {
+    if (currentTrack !== track) {
+      if (currentTrack) {
+        currentTrack.pause();
+        currentTrack.currentTime = 0;
+      }
+      currentTrack = track;
+    }
+    playbackRequested = true;
+    startPlayback();
+  }
+  function registerBgmEvents() {
+    window.addEventListener("title-exit", playMenuBgm);
+    window.addEventListener("back-to-mode-select", playMenuBgm);
+    document.addEventListener("pointerdown", startPlayback);
+    document.addEventListener("keydown", startPlayback);
+  }
+  function playMenuBgm() {
+    playTrack(tracks.menu);
+  }
+  function playGameBgm(isTutorial) {
+    playTrack(isTutorial ? tracks.tutorial : tracks.game);
+  }
+  function playGameClearBgm() {
+    playTrack(tracks.gameClear);
+  }
+  function playGameOverBgm() {
+    playTrack(tracks.gameOver);
+  }
+  function pauseBgm() {
+    playbackRequested = false;
+    currentTrack == null ? void 0 : currentTrack.pause();
+  }
+  function resumeBgm() {
+    if (!currentTrack) return;
+    playbackRequested = true;
+    startPlayback();
+  }
+  function stopBgm() {
+    playbackRequested = false;
+    if (!currentTrack) return;
+    currentTrack.pause();
+    currentTrack.currentTime = 0;
+    currentTrack = null;
+  }
+  function playEnemyHitSfx(isWeakPoint = false) {
+    const sound = enemyHitSound.cloneNode();
+    sound.volume = enemyHitSound.volume;
+    sound.playbackRate = isWeakPoint ? 1.12 : 1;
+    sound.play().catch((error) => {
+      if ((error == null ? void 0 : error.name) !== "NotAllowedError" && (error == null ? void 0 : error.name) !== "AbortError") {
+        console.warn("\u653B\u6483\u52B9\u679C\u97F3\u3092\u518D\u751F\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F", error);
+      }
+    });
+  }
 
   // src/object/cube.js
   var _Cube = class _Cube extends DynamicObject {
@@ -1443,7 +1586,7 @@
       this.weakFace = _Cube.FACE.BACK;
       this.headFace = _Cube.FACE.FRONT;
       this.dashCooldown = 4e3;
-      this.lastDashTime = performance.now();
+      this.lastDashTime = getGameTime();
       this.isPreparingDash = false;
       this.dashWarningStartedAt = 0;
       switch (this.difficulty) {
@@ -1457,7 +1600,6 @@
           this.maxHp = _Cube.MAX_HP.Hard;
           break;
         default:
-          console.log("default");
           this.maxHp = 100;
       }
       this.hp = this.maxHp;
@@ -1465,7 +1607,9 @@
       if (this.difficulty !== Difficulty.TUTORIAL) {
         showHpBar();
       }
-      this.body.addEventListener("collide", (e) => this.hundleDamageEvent(e));
+      this.body.addEventListener("collide", (event) => {
+        this.handleDamageEvent(event);
+      });
       if (this.difficulty === Difficulty.TUTORIAL) {
         this.tutorial = new CubeTutorial(this);
       }
@@ -1475,13 +1619,13 @@
     * @param {CANNON.Event} event - 衝突イベント
     * @returns {void}　
     */
-    hundleDamageEvent(event) {
+    handleDamageEvent(event) {
       var _a, _b;
       if (this.isBattleFinished || ((_a = this.tutorial) == null ? void 0 : _a.phase) === "completed") return;
       const damage = this.calculateDamage(event);
       if (!damage) return;
-      console.log(`Damage received: ${damage}, maxHp: ${this.maxHp}, currentHp: ${this.hp}`);
       this.applyDamage(damage);
+      playEnemyHitSfx(this.lastHitWasWeakPoint);
       const restHpRate = this.hp / this.maxHp;
       updateHpBar(restHpRate * 100);
       (_b = this.tutorial) == null ? void 0 : _b.notifyDamage(damage, {
@@ -1506,10 +1650,10 @@
           return null;
         }
         const gameOverEvent = new CustomEvent("game-over");
-        console.log("Game Over! Cube hit on the front face.");
         window.dispatchEvent(gameOverEvent);
         return null;
       }
+      if (impactSpeed < MIN_DAMAGE_IMPACT_SPEED) return null;
       this.lastHitWasWeakPoint = false;
       switch (this.weakFace) {
         case _Cube.FACE.BACK:
@@ -1538,7 +1682,6 @@
       if (this.hp <= 0) {
         const gameClearEvent = new CustomEvent("game-clear");
         window.dispatchEvent(gameClearEvent);
-        console.log("Victory! Cube destroyed.");
       }
     }
     /**
@@ -1561,7 +1704,7 @@
     * @returns {void}　
     */
     updateBehavior(target) {
-      const now = performance.now();
+      const now = getGameTime();
       if (this.isPreparingDash) {
         const difficultyName = DifficultyNames[this.difficulty];
         const warningTurnSpeed = _Cube.WARNING_TURN_SPEED[difficultyName];
@@ -1664,22 +1807,6 @@
       const force = new CANNON.Vec3(fx, 0, fz);
       this.applyImpulse(force);
     }
-    updateWeakFace(newWeakFace) {
-      const normalColor = cubeColors[this.id % cubeColors.length];
-      for (let i = 0; i < 6; i++) {
-        let color = normalColor;
-        if (i === this.headFace) {
-          color = 16711680;
-        }
-        if (i === this.weakFace) {
-          color = 16774307;
-        }
-        this.mesh.material[i].color.setHex(color);
-        this.mesh.material[i].emissive.set(
-          new THREE.Color(color).multiplyScalar(0.2)
-        );
-      }
-    }
   };
   __publicField(_Cube, "MASS", 2);
   // 質量  
@@ -1769,6 +1896,7 @@
       }));
       this.hideEnemy();
     }
+    /** Snakeの拘束と全セグメントを物理ワールドから外して非表示にする。 */
     hideEnemy() {
       this.enemy.constraints.forEach((constraint) => {
         if (world.constraints.includes(constraint)) {
@@ -1784,6 +1912,7 @@
       this.enemy.lightRayMesh.visible = false;
       this.enemyVisible = false;
     }
+    /** Snakeを初期配置へ戻し、拘束と全セグメントを再登録する。 */
     showEnemy() {
       this.resetEnemyPosition();
       this.enemy.bodies.forEach((body) => {
@@ -1800,6 +1929,7 @@
       this.enemy.updateVisuals();
       this.enemyVisible = true;
     }
+    /** 全セグメントの位置・姿勢・速度を保存済みの初期状態へ戻す。 */
     resetEnemyPosition() {
       if (!this.initialBodyTransforms) return;
       this.enemy.bodies.forEach((body, index) => {
@@ -1813,8 +1943,17 @@
         body.aabbNeedsUpdate = true;
         body.wakeUp();
       });
+      this.enemy.headVisualLift = 0;
+      this.enemy.headCenterApproach = 0;
+      this.enemy.appliedHeadLift = 0;
+      this.enemy.appliedHeadCenterOffsetX = 0;
+      this.enemy.appliedHeadCenterOffsetZ = 0;
+      this.enemy.isHeadPoseControlled = false;
+      this.enemy.bodies[0].type = CANNON.Body.DYNAMIC;
+      this.enemy.bodies[0].updateMassProperties();
       if (this.enemyVisible) this.enemy.updateVisuals();
     }
+    /** レーザー発射前に点滅する意味を説明し、その場で実演する。 */
     showWarningStateExplanation() {
       const title = "\u70B9\u6EC5\u72B6\u614B";
       const description = "\u70B9\u6EC5\u72B6\u614B\u306F\u6575\u304C\u30EC\u30FC\u30B6\u30FC\u3092\u653E\u3064\u6E96\u5099\u3092\u3057\u3066\u3044\u308B\u5408\u56F3\u3067\u3059";
@@ -1822,31 +1961,43 @@
       this.showStepOverlay(title, description);
       this.showEnemy();
       const now = getGameTime();
-      this.waringStartTime = now;
+      this.warningStartedAt = now;
       this.enemy.startLightRayWarning(now);
     }
+    /**
+     * 説明オーバーレイの待機中も点滅と顔の向きを更新する。
+     * @param {Ball} target - 顔を向ける対象
+     */
     updateWaitingWarningState(target) {
       const now = getGameTime();
       this.enemy.updateLightRayWarning(now);
       this.enemy.faceTarget(target);
     }
+    /** 点滅状態の実演時間を初期化する。 */
     beginWarningState() {
-      this.waringStartTime = getGameTime();
+      this.warningStartedAt = getGameTime();
       this.enemy.startLightRayWarning(getGameTime());
     }
+    /**
+     * 点滅の実演を進め、規定時間が経過したか判定する。
+     * @param {Ball} target - 顔を向ける対象
+     * @returns {boolean} 実演が完了した場合はtrue
+     */
     updateWarningState(target) {
       this.enemy.updateLightRayWarning(getGameTime());
       this.enemy.faceTarget(target);
-      if (getGameTime() - this.waringStartTime >= this.warningStateDuration) {
+      if (getGameTime() - this.warningStartedAt >= this.warningStateDuration) {
         return true;
       }
       return false;
     }
+    /** 点滅後に直線状のレーザーが発射されることを説明する。 */
     showLightRayExplanation() {
       const title = "\u5149\u7DDA";
       const description = "\u6575\u304C\u30EC\u30FC\u30B6\u30FC\u3092\u653E\u3063\u3066\u304D\u307E\u3059\u3002\u79FB\u52D5\u3057\u3066\u56DE\u907F\u3057\u307E\u3057\u3087\u3046";
       this.showStepOverlay(title, description);
     }
+    /** レーザー回避練習の予兆状態を初期化する。 */
     beginLightRay() {
       this.warningStateStartTime = getGameTime();
       this.enemy.isPreparingLightRay = false;
@@ -1854,11 +2005,20 @@
       this.enemy.lightRayMesh.visible = false;
       this.enemy.startLightRayWarning(this.warningStateStartTime);
     }
+    /**
+     * 説明確認待ちの間もレーザー予兆を更新する。
+     * @param {Ball} target - 顔を向ける対象
+     */
     updateWhileLightRayWaiting(target) {
       const now = getGameTime();
       this.enemy.updateLightRayWarning(now);
       this.enemy.faceTarget(target);
     }
+    /**
+     * 予兆、発射、命中、終了までのレーザー練習を進める。
+     * @param {Ball} target - レーザーの対象
+     * @returns {boolean} 回避練習が完了した場合はtrue
+     */
     updateLightRay(target) {
       const now = getGameTime();
       if (this.enemy.isPreparingLightRay) {
@@ -1882,7 +2042,7 @@
       }
       return false;
     }
-    /** 光線に当たった場合、通常のゲームオーバーにはせず同じ練習をやり直す。 */
+    /** 光線に当たった場合、ゲームオーバーにせず同じ練習をやり直す。 */
     retryLightRayPractice() {
       var _a;
       if (this.dangerNoticeOpen) return;
@@ -1901,6 +2061,10 @@
         }
       );
     }
+    /**
+     * 通常戦闘と同じ蛇行追跡を練習対象へ適用する。
+     * @param {Ball} target - 追跡対象
+     */
     chaseTarget(target) {
       this.enemy.chase(target, getGameTime());
     }
@@ -1910,11 +2074,11 @@
   var _Snake = class _Snake extends DynamicObject {
     // 初期配置
     constructor(difficulty2) {
+      var _a;
       super();
       const { x, z } = _Snake.initialPosition;
       this.radius = 2;
       this.segmentCount = 7;
-      this.id = _Snake.id++;
       this.difficulty = difficulty2;
       this.weakSegmentIndex = 1 + Math.floor(
         Math.random() * (this.segmentCount - 1)
@@ -1923,8 +2087,7 @@
         x,
         z,
         this.radius,
-        this.segmentCount,
-        _Snake.MASS
+        this.segmentCount
       );
       this.bodies = snake2.bodies;
       this.constraints = snake2.constraints;
@@ -1950,18 +2113,8 @@
         this.segmentCount,
         this.weakSegmentIndex
       );
-      switch (this.difficulty) {
-        case Difficulty.EASY:
-          this.maxHp = 30;
-          break;
-        case Difficulty.NORMAL:
-          this.maxHp = 50;
-          break;
-        case Difficulty.HARD:
-        default:
-          this.maxHp = 100;
-          break;
-      }
+      const difficultyName = DifficultyNames[this.difficulty];
+      this.maxHp = (_a = _Snake.MAX_HP[difficultyName]) != null ? _a : _Snake.MAX_HP.Hard;
       this.hp = this.maxHp;
       this.isBattleFinished = false;
       this.faceYaw = 0;
@@ -1977,6 +2130,10 @@
       this.lightRayStoppedAt = 0;
       this.headVisualLift = 0;
       this.headCenterApproach = 0;
+      this.appliedHeadLift = 0;
+      this.appliedHeadCenterOffsetX = 0;
+      this.appliedHeadCenterOffsetZ = 0;
+      this.isHeadPoseControlled = false;
       if (this.difficulty !== Difficulty.TUTORIAL) {
         showHpBar();
       }
@@ -2009,15 +2166,17 @@
         window.dispatchEvent(gameOverEvent);
         return;
       }
-      let damage = Math.abs(
+      const impactSpeed = Math.abs(
         event.contact.getImpactVelocityAlongNormal()
       );
+      if (impactSpeed < MIN_DAMAGE_IMPACT_SPEED) return;
+      let damage = impactSpeed;
       const isWeakPoint = segmentIndex === this.weakSegmentIndex;
       if (isWeakPoint) {
         damage *= _Snake.WEAK_SEGMENT_DAMAGE_COEF;
       }
-      if (damage <= 0) return;
       this.applyDamage(damage);
+      playEnemyHitSfx(isWeakPoint);
       updateHpBar(this.hp / this.maxHp * 100);
       (_b = this.tutorial) == null ? void 0 : _b.notifyDamage(damage, { isWeakPoint });
     }
@@ -2303,7 +2462,8 @@
       this.applyForce(forceVector, head);
     }
     /**
-    * スネークのビジュアルを物理演算の結果に合わせて更新する
+    * レーザー演出中の頭部位置を物理ボディへ適用し、
+    * 全セグメントのビジュアルを物理演算の結果に合わせて更新する
     * @returns {void}
     */
     updateVisuals() {
@@ -2320,30 +2480,54 @@
         targetHeadCenterApproach,
         _Snake.HEAD_CENTER_APPROACH_LERP
       );
+      const head = this.bodies[0];
+      const shouldControlHeadPose = isLightRaySequenceActive || this.headVisualLift > 0.01 || this.headCenterApproach > 1e-3;
+      if (shouldControlHeadPose && !this.isHeadPoseControlled) {
+        head.type = CANNON.Body.KINEMATIC;
+        head.velocity.set(0, 0, 0);
+        head.angularVelocity.set(0, 0, 0);
+        head.updateMassProperties();
+        this.isHeadPoseControlled = true;
+      }
+      const baseHeadX = head.position.x - this.appliedHeadCenterOffsetX;
+      const baseHeadZ = head.position.z - this.appliedHeadCenterOffsetZ;
       let bodyCenterX = 0;
       let bodyCenterZ = 0;
-      for (const body of this.bodies) {
-        bodyCenterX += body.position.x;
-        bodyCenterZ += body.position.z;
+      for (let i = 0; i < this.bodies.length; i++) {
+        bodyCenterX += i === 0 ? baseHeadX : this.bodies[i].position.x;
+        bodyCenterZ += i === 0 ? baseHeadZ : this.bodies[i].position.z;
       }
       bodyCenterX /= this.bodies.length;
       bodyCenterZ /= this.bodies.length;
+      const nextCenterOffsetX = (bodyCenterX - baseHeadX) * this.headCenterApproach;
+      const nextCenterOffsetZ = (bodyCenterZ - baseHeadZ) * this.headCenterApproach;
+      head.position.x += nextCenterOffsetX - this.appliedHeadCenterOffsetX;
+      head.position.y += this.headVisualLift - this.appliedHeadLift;
+      head.position.z += nextCenterOffsetZ - this.appliedHeadCenterOffsetZ;
+      head.aabbNeedsUpdate = true;
+      head.wakeUp();
+      this.appliedHeadLift = this.headVisualLift;
+      this.appliedHeadCenterOffsetX = nextCenterOffsetX;
+      this.appliedHeadCenterOffsetZ = nextCenterOffsetZ;
+      if (!shouldControlHeadPose && this.isHeadPoseControlled) {
+        head.position.x -= this.appliedHeadCenterOffsetX;
+        head.position.y -= this.appliedHeadLift;
+        head.position.z -= this.appliedHeadCenterOffsetZ;
+        this.headVisualLift = 0;
+        this.headCenterApproach = 0;
+        this.appliedHeadLift = 0;
+        this.appliedHeadCenterOffsetX = 0;
+        this.appliedHeadCenterOffsetZ = 0;
+        head.type = CANNON.Body.DYNAMIC;
+        head.updateMassProperties();
+        head.wakeUp();
+        this.isHeadPoseControlled = false;
+      }
       for (let i = 0; i < this.bodies.length; i++) {
         this.meshes[i].position.copy(
           this.bodies[i].position
         );
-        if (i == 0) {
-          this.meshes[i].position.x = THREE.MathUtils.lerp(
-            this.bodies[i].position.x,
-            bodyCenterX,
-            this.headCenterApproach
-          );
-          this.meshes[i].position.z = THREE.MathUtils.lerp(
-            this.bodies[i].position.z,
-            bodyCenterZ,
-            this.headCenterApproach
-          );
-          this.meshes[i].position.y += this.headVisualLift;
+        if (i === 0) {
           this.meshes[i].rotation.set(0, this.faceYaw, 0);
           continue;
         }
@@ -2376,16 +2560,19 @@
       );
     }
   };
-  __publicField(_Snake, "id", 0);
-  // 蛇個体ごとの識別子
-  __publicField(_Snake, "MASS", 2);
-  // 物理ボディ全体の質量
   __publicField(_Snake, "CHASE_FORCE", {
     // 難易度ごとの追跡時に与える力
     "Tutorial": 77,
     "Easy": 70,
     "Normal": 77,
     "Hard": 85
+  });
+  __publicField(_Snake, "MAX_HP", {
+    // 難易度ごとの最大HP
+    "Tutorial": 100,
+    "Easy": 50,
+    "Normal": 90,
+    "Hard": 150
   });
   __publicField(_Snake, "CHASE_SWAY_FREQUENCY", 0.8);
   // 追跡時に1秒間で左右へ揺れる回数
@@ -2402,8 +2589,8 @@
   __publicField(_Snake, "LIGHT_RAY_SPEED", {
     // 光線が伸びる速さ
     "Tutorial": 50,
-    "Easy": 20,
-    "Normal": 110,
+    "Easy": 50,
+    "Normal": 90,
     "Hard": 150
   });
   __publicField(_Snake, "LIGHT_RAY_RADIUS", 0.15);
@@ -2426,87 +2613,8 @@
   __publicField(_Snake, "initialPosition", { x: 0, z: -10 });
   var Snake = _Snake;
 
-  // src/audioManager.js
-  var tracks = {
-    menu: createTrack("asset/audio/dark_things_loop.mp3", 0.3),
-    game: createTrack("asset/audio/fight_looped.wav", 0.28),
-    tutorial: createTrack("asset/audio/synthwavehouse.ogg", 0.22),
-    gameClear: createTrack("asset/audio/winfretless.ogg", 0.4, false),
-    gameOver: createTrack("asset/audio/GameOver.ogg", 0.4, false)
-  };
-  var currentTrack = null;
-  var playbackRequested = false;
-  function createTrack(src, volume, loop = true) {
-    const audio = new Audio(src);
-    audio.loop = loop;
-    audio.preload = "auto";
-    audio.volume = volume;
-    audio.addEventListener("ended", () => {
-      if (currentTrack === audio) playbackRequested = false;
-    });
-    return audio;
-  }
-  function startPlayback() {
-    return __async(this, null, function* () {
-      if (!currentTrack || !playbackRequested) return;
-      try {
-        yield currentTrack.play();
-      } catch (error) {
-        if ((error == null ? void 0 : error.name) !== "NotAllowedError" && (error == null ? void 0 : error.name) !== "AbortError") {
-          console.warn("BGM\u3092\u518D\u751F\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F", error);
-        }
-      }
-    });
-  }
-  function playTrack(track) {
-    if (currentTrack !== track) {
-      if (currentTrack) {
-        currentTrack.pause();
-        currentTrack.currentTime = 0;
-      }
-      currentTrack = track;
-    }
-    playbackRequested = true;
-    startPlayback();
-  }
-  function registerBgmEvents() {
-    window.addEventListener("title-exit", playMenuBgm);
-    window.addEventListener("back-to-mode-select", playMenuBgm);
-    document.addEventListener("pointerdown", startPlayback);
-    document.addEventListener("keydown", startPlayback);
-  }
-  function playMenuBgm() {
-    playTrack(tracks.menu);
-  }
-  function playGameBgm(isTutorial) {
-    playTrack(isTutorial ? tracks.tutorial : tracks.game);
-  }
-  function playGameClearBgm() {
-    playTrack(tracks.gameClear);
-  }
-  function playGameOverBgm() {
-    playTrack(tracks.gameOver);
-  }
-  function pauseBgm() {
-    playbackRequested = false;
-    currentTrack == null ? void 0 : currentTrack.pause();
-  }
-  function resumeBgm() {
-    if (!currentTrack) return;
-    playbackRequested = true;
-    startPlayback();
-  }
-  function stopBgm() {
-    playbackRequested = false;
-    if (!currentTrack) return;
-    currentTrack.pause();
-    currentTrack.currentTime = 0;
-    currentTrack = null;
-  }
-
   // src/gameController.js
   var started = false;
-  var destroyGameFlg = false;
   var ball = null;
   var cube = null;
   var snake = null;
@@ -2514,7 +2622,7 @@
   var difficulty = null;
   var gameState = GameState.IDLE;
   var inputEnabledBeforePause = true;
-  window.addEventListener("game-over", hundleGameOver);
+  window.addEventListener("game-over", handleGameOver);
   window.addEventListener("game-clear", handleGameClear);
   window.addEventListener("back-to-mode-select", returnToModeSelect);
   function updateOpponentAndDifficulty(newOpponent, newDifficulty) {
@@ -2539,7 +2647,7 @@
     resumeBgm();
     return true;
   }
-  function hundleGameOver() {
+  function handleGameOver() {
     if (gameState !== GameState.PLAYING) return;
     gameState = GameState.GAME_OVER;
     started = false;
@@ -2562,16 +2670,15 @@
     resetGameClock();
     (_a = cube == null ? void 0 : cube.tutorial) == null ? void 0 : _a.destroyUi();
     (_b = snake == null ? void 0 : snake.tutorial) == null ? void 0 : _b.destroyUi();
-    destroyGameFlg = false;
     try {
       destroyRenderer();
-    } catch (err) {
-      console.warn("\u30EC\u30F3\u30C0\u30E9\u30FC\u7834\u68C4\u5931\u6557");
+    } catch (error) {
+      console.warn("\u30EC\u30F3\u30C0\u30E9\u30FC\u306E\u7834\u68C4\u306B\u5931\u6557\u3057\u307E\u3057\u305F", error);
     }
     try {
       destroyPhysics();
-    } catch (err) {
-      console.warn("\u7269\u7406\u30A8\u30F3\u30B8\u30F3\u7834\u68C4\u5931\u6557");
+    } catch (error) {
+      console.warn("\u7269\u7406\u30A8\u30F3\u30B8\u30F3\u306E\u7834\u68C4\u306B\u5931\u6557\u3057\u307E\u3057\u305F", error);
     }
     ball = null;
     cube = null;
@@ -2584,7 +2691,6 @@
     initRenderer();
     initPhysics();
     playGameBgm(Number(difficulty) === Difficulty.TUTORIAL);
-    console.log(`Starting game with difficulty: ${difficulty}, opponent: ${opponent}`);
     ball = new Ball();
     if (Number(difficulty) === Difficulty.TUTORIAL) {
       ball.setInputEnabled(false);
@@ -2598,25 +2704,23 @@
         break;
     }
   }
-  function judgeCanJump(world2) {
+  function judgeCanJump(physicsWorld) {
     const normal = new CANNON.Vec3();
-    for (const c of world2.contacts) {
-      if (c.bi !== this.body && c.bj !== this.body)
-        continue;
-      const opponent2 = c.bi === this.body ? c.bj : c.bi;
-      if (c.bi === this.body)
+    for (const c of physicsWorld.contacts) {
+      if (c.bi !== ball.body && c.bj !== ball.body) continue;
+      if (c.bi === ball.body) {
         c.ni.negate(normal);
-      else
+      } else {
         normal.copy(c.ni);
-      if (normal.y < 0.5)
-        continue;
+      }
+      if (normal.y < 0.5) continue;
       return true;
     }
     return false;
   }
   function updateGameState(dt) {
     if (!started || gameState !== GameState.PLAYING) return;
-    ball.canJump = judgeCanJump.call(ball, world);
+    ball.canJump = judgeCanJump(world);
     ball.update(dt);
     switch (Number(opponent)) {
       case Opponent.CUBE:
@@ -2731,15 +2835,38 @@
     const gameStartBtn = document.createElement("button");
     gameStartBtn.id = "game-start-btn";
     gameStartBtn.type = "button";
+    const gyroStatus = document.createElement("p");
+    gyroStatus.id = "gyro-start-status";
+    gyroStatus.setAttribute("role", "status");
+    gyroStatus.setAttribute("aria-live", "polite");
+    let selectedDifficulty = Difficulty.EASY;
+    let isStarting = false;
     difficultyBtns.forEach((button) => {
       button.addEventListener("click", () => updateSelectedElm(button));
     });
-    gameStartBtn.addEventListener("click", () => {
+    gameStartBtn.addEventListener("click", () => __async(null, null, function* () {
+      if (isStarting) return;
+      if (isMobileDevice()) {
+        isStarting = true;
+        setSelectionEnabled(false);
+        gameStartBtn.textContent = "\u30B8\u30E3\u30A4\u30ED\u8ABF\u6574\u4E2D\u2026";
+        gyroStatus.textContent = "\u7AEF\u672B\u3092\u6A2A\u5411\u304D\u306B\u6301\u3061\u3001\u52D5\u304B\u3055\u305A\u306B\u304A\u5F85\u3061\u304F\u3060\u3055\u3044";
+        resetCalibration();
+        const gyroReady = yield requestGyro();
+        if (!gyroReady) {
+          isStarting = false;
+          setSelectionEnabled(true);
+          updateStartButtonText();
+          gyroStatus.textContent = "\u30B8\u30E3\u30A4\u30ED\u3092\u5229\u7528\u3067\u304D\u307E\u305B\u3093\u3002\u30BB\u30F3\u30B5\u30FC\u306E\u8A31\u53EF\u3092\u78BA\u8A8D\u3057\u3066\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044";
+          return;
+        }
+      }
       window.dispatchEvent(new CustomEvent("game-start"));
-    }, { once: true });
+    }));
     modeSelectOverlay.appendChild(titleText);
     modeSelectOverlay.appendChild(selectionPanel);
     modeSelectOverlay.appendChild(gameStartBtn);
+    modeSelectOverlay.appendChild(gyroStatus);
     document.body.appendChild(modeSelectOverlay);
     window.addEventListener("game-start", () => {
       modeSelectOverlay.remove();
@@ -2751,9 +2878,19 @@
         button.classList.toggle("selected", isSelected);
         button.setAttribute("aria-pressed", String(isSelected));
       });
-      const selectedDifficulty = Number(selectedElm.dataset.difficulty);
+      selectedDifficulty = Number(selectedElm.dataset.difficulty);
       updateOpponentAndDifficulty(Opponent.SNAKE, selectedDifficulty);
+      updateStartButtonText();
+      gyroStatus.textContent = "";
+    }
+    function updateStartButtonText() {
       gameStartBtn.textContent = selectedDifficulty === Difficulty.TUTORIAL ? "\u30C1\u30E5\u30FC\u30C8\u30EA\u30A2\u30EB\u958B\u59CB" : "\u30B2\u30FC\u30E0\u958B\u59CB";
+    }
+    function setSelectionEnabled(enabled) {
+      gameStartBtn.disabled = !enabled;
+      difficultyBtns.forEach((button) => {
+        button.disabled = !enabled;
+      });
     }
   }
   function createDifficultyButton(text, className, difficulty2) {
@@ -2767,8 +2904,7 @@
   }
 
   // src/ui/gameOverPage.js
-  function showGameOverPage(event) {
-    console.log("Game Over Page: Displaying game over dialog");
+  function showGameOverPage() {
     const overlay = document.createElement("div");
     overlay.classList.add("game-over-overlay");
     const modal = document.createElement("div");
@@ -2809,7 +2945,7 @@
   }
 
   // src/ui/gameClearPage.js
-  function showGameClearPage(event) {
+  function showGameClearPage() {
     const overlay = document.createElement("div");
     overlay.classList.add("game-clear-overlay");
     const modal = document.createElement("div");
@@ -2832,12 +2968,10 @@
     modeSelectButton.classList.add("game-clear-btn", "game-clear-btn-mode");
     modeSelectButton.textContent = "\u30E2\u30FC\u30C9\u9078\u629E\u306B\u623B\u308B";
     retryButton.addEventListener("click", () => {
-      console.log("Game Clear Page: Retrying the game");
       window.dispatchEvent(new CustomEvent("game-start"));
       overlay.remove();
     });
     modeSelectButton.addEventListener("click", () => {
-      console.log("Game Clear Page: Returning to mode select page");
       window.dispatchEvent(new CustomEvent("back-to-mode-select"));
       overlay.remove();
     });
@@ -2957,23 +3091,19 @@
     if (!controlHint) return;
     controlHint.textContent = isMobileDevice() ? "\u79FB\u52D5\uFF1A\u7AEF\u672B\u3092\u50BE\u3051\u308B\u3000\u30B8\u30E3\u30F3\u30D7\uFF1A\u753B\u9762\u3092\u30BF\u30C3\u30D7" : "\u79FB\u52D5\uFF1AWASD / \u77E2\u5370\u30AD\u30FC\u3000\u30B8\u30E3\u30F3\u30D7\uFF1A\u30B9\u30DA\u30FC\u30B9\u30AD\u30FC";
   }
-  function init(e) {
+  function init() {
     try {
       destroyGame();
-    } catch (err) {
-      console.warn("\u30B2\u30FC\u30E0\u7834\u68C4\u5931\u6557");
-      console.log(err);
+    } catch (error) {
+      console.warn("\u30B2\u30FC\u30E0\u306E\u7834\u68C4\u306B\u5931\u6557\u3057\u307E\u3057\u305F", error);
     }
     try {
       startGame();
-    } catch (err) {
-      console.warn("\u30B2\u30FC\u30E0\u521D\u671F\u5316\u5931\u6557");
-      console.log(err);
+    } catch (error) {
+      console.warn("\u30B2\u30FC\u30E0\u306E\u521D\u671F\u5316\u306B\u5931\u6557\u3057\u307E\u3057\u305F", error);
+      return;
     }
-    setupCollisionHandler(obstacles);
     setupEvents();
-    resetCalibration();
-    requestGyro();
     lastTime = performance.now();
     renderer.render(scene, camera);
   }

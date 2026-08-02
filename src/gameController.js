@@ -5,6 +5,7 @@ import { Cube } from './object/cube.js';
 import { Snake } from './object/snake.js';
 import { Opponent, Difficulty, GameState } from './constants.js';
 import { pauseGameClock, resetGameClock, resumeGameClock } from './core/gameClock.js';
+import { resetHitEffects } from './core/hitEffects.js';
 import {
     pauseBgm,
     playGameClearBgm,
@@ -105,6 +106,7 @@ export function destroyGame() {
     resetGameClock();
     cube?.tutorial?.destroyUi();
     snake?.tutorial?.destroyUi();
+    resetHitEffects();
     try {
         destroyRenderer();
     } catch (error) {

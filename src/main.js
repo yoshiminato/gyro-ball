@@ -19,6 +19,11 @@ import { registerTouchEvent } from './input/touch.js';
 import { registerPauseUi } from './ui/pausePage.js';
 import { registerBgmEvents } from './audioManager.js';
 import { isMobileDevice } from './util.js';
+import {
+    applyCameraShake,
+    beginCameraFrame,
+    updateHitEffects
+} from './core/hitEffects.js';
 
 // プレイヤーを背後から追従するカメラの距離と高さ。
 const CAM_DIST = 14;
@@ -99,10 +104,13 @@ function animate() {
     lastTime = now;
 
     updateGameState(dt);
+    updateHitEffects(dt);
 
     ballLight.position.copy(ball.mesh.position);
     ballLight.position.y += 0.5;
 
+    // 前フレームの揺れを除いてから通常の追従位置を計算する。
+    beginCameraFrame(camera);
     // ボールの進行方向に対して後方から滑らかに追従する。
     camTarget.lerp(ball.mesh.position, 0.08);
     const camOffsetX = -Math.sin(ball.heading) * CAM_DIST;
@@ -112,6 +120,7 @@ function animate() {
         new THREE.Vector3(camTarget.x + camOffsetX, camTarget.y + CAM_HEIGHT, camTarget.z + camOffsetZ), 
         0.07
     );
+    applyCameraShake(camera);
     camera.lookAt(camTarget);
 
     // 2灯を異なる周期で周回させ、背景に動きを付ける。

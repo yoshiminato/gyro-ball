@@ -10,6 +10,7 @@ import { showHpBar, updateHpBar } from '../ui/hpBar.js';
 import { CubeTutorial } from '../tutorial/cubeTutorial.js';
 import { getGameTime } from '../core/gameClock.js';
 import { playEnemyHitSfx } from '../audioManager.js';
+import { spawnHitEffect } from '../core/hitEffects.js';
 
 
 export class Cube extends DynamicObject {
@@ -131,6 +132,14 @@ export class Cube extends DynamicObject {
         // ダメージ適用
         this.applyDamage(damage);
         playEnemyHitSfx(this.lastHitWasWeakPoint);
+        const impactSpeed = Math.abs(event.contact.getImpactVelocityAlongNormal());
+        spawnHitEffect(
+            event,
+            this.body,
+            this.mesh,
+            this.lastHitWasWeakPoint,
+            impactSpeed
+        );
         const restHpRate = this.hp / this.maxHp;
         updateHpBar(restHpRate * 100);
         this.tutorial?.notifyDamage(damage, {
