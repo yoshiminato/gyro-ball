@@ -57,7 +57,7 @@ export class Snake extends DynamicObject {
     static HEAD_CENTER_APPROACH_LERP = 0.12;   // 頭のXZ寄せを補間する係数
 
 
-    static initialPosition = { x: 0, z: -10 }; // 初期配置
+    static initialPosition = { x: 0, z: -20 }; // 初期配置
 
     constructor(difficulty) {
 
