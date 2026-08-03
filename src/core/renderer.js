@@ -4,8 +4,14 @@
 
 import { FIELD_RADIUS } from '../constants.js';
 
-export let renderer, scene, camera;
-export let ballLight, neonLight1, neonLight2;
+export let renderer = null;
+export let scene = null;
+export let camera = null;
+export let ballLight = null;
+export let neonLight1 = null;
+export let neonLight2 = null;
+
+let resizeListenerRegistered = false;
 
 const cubeColor = 0x4488ff;
 
@@ -44,7 +50,10 @@ export function initRenderer() {
     createStars();
     
     // リサイズイベントの登録
-    window.addEventListener('resize', onWindowResize);
+    if (!resizeListenerRegistered) {
+        window.addEventListener('resize', onWindowResize);
+        resizeListenerRegistered = true;
+    }
 }
 
 function createGround() {
@@ -354,6 +363,7 @@ export function createLightRayMesh(radius = 0.12) {
  * @returns {void}
  */
 function onWindowResize() {
+    if (!camera || !renderer) return;
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -364,36 +374,37 @@ function onWindowResize() {
  * @returns {void}
  */
 export function destroyRenderer() {
-
-    window.removeEventListener('resize', onWindowResize);
-
-    scene.traverse(obj=>{
-
-        if(obj.geometry){
-            obj.geometry.dispose();
-        }
-
-        if(obj.material){
-
-            if(Array.isArray(obj.material)){
-                obj.material.forEach(m=>m.dispose());
-            }else{
-                obj.material.dispose();
-            }
-        }
-
-    });
-
-    while(scene.children.length > 0){
-        scene.remove(scene.children[0]);
+    if (resizeListenerRegistered) {
+        window.removeEventListener('resize', onWindowResize);
+        resizeListenerRegistered = false;
     }
 
-    // レンダラーの破棄
+    if (scene) {
+        scene.traverse((object) => {
+            object.geometry?.dispose?.();
+
+            if (Array.isArray(object.material)) {
+                object.material.forEach((material) => material.dispose?.());
+            } else {
+                object.material?.dispose?.();
+            }
+        });
+
+        while (scene.children.length > 0) {
+            scene.remove(scene.children[0]);
+        }
+    }
+
     if (renderer) {
         renderer.dispose();
         renderer.forceContextLoss();
-        renderer.domElement.remove();
-        renderer = null;
+        renderer.domElement?.remove();
     }
 
+    renderer = null;
+    scene = null;
+    camera = null;
+    ballLight = null;
+    neonLight1 = null;
+    neonLight2 = null;
 }

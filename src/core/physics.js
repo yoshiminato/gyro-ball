@@ -4,8 +4,8 @@
 
 import { FIELD_RADIUS } from '../constants.js';
 
-export let world;
-let ballBody;
+export let world = null;
+let ballBody = null;
 
 // 円形フィールドを構成する静的壁の設定。
 const FIELD_WALL_HEIGHT = 10;
@@ -202,11 +202,16 @@ export function createSnakeBody(
  * @returns {void}
  */
 export function destroyPhysics() {
-    // 物理世界の全てのボディを削除
+    if (!world) return;
+
+    // ボディより先に拘束を外し、相互参照を残さない。
+    while (world.constraints.length > 0) {
+        world.removeConstraint(world.constraints[0]);
+    }
     while (world.bodies.length > 0) {
         world.removeBody(world.bodies[0]);
     }
-    while (world.constraints.length) {
-        world.removeConstraint(world.constraints[0]);
-    }
+
+    ballBody = null;
+    world = null;
 }

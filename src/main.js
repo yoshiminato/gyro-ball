@@ -62,22 +62,38 @@ function showControlHint() {
 function init() {
     try {
         destroyGame();
-    } catch (error) {
-        console.warn('ゲームの破棄に失敗しました', error);
-    }
-
-    try {
         startGame();
+        if (
+            !ball?.mesh
+            || !renderer
+            || !scene
+            || !camera
+            || !ballLight
+            || !neonLight1
+            || !neonLight2
+        ) {
+            throw new Error('ゲームの必須オブジェクトを生成できませんでした');
+        }
+
+        setupEvents();
+        lastTime = performance.now();
+
+        // 次のrequestAnimationFrameを待たず、生成直後のシーンを表示する。
+        renderer.render(scene, camera);
+        window.dispatchEvent(new CustomEvent('game-started'));
     } catch (error) {
-        console.warn('ゲームの初期化に失敗しました', error);
-        return;
+        console.error('ゲームの初期化に失敗しました', error);
+        try {
+            destroyGame();
+        } catch (cleanupError) {
+            console.error('初期化失敗後の後始末に失敗しました', cleanupError);
+        }
+        window.dispatchEvent(new CustomEvent('game-start-failed', {
+            detail: {
+                message: 'ゲームを開始できませんでした。もう一度お試しください。'
+            }
+        }));
     }
-
-    setupEvents();
-    lastTime = performance.now();
-
-    // 次のrequestAnimationFrameを待たず、生成直後のシーンを表示する。
-    renderer.render(scene, camera);
 }
 
 /**
@@ -96,7 +112,16 @@ function setupEvents() {
  */
 function animate() {
     requestAnimationFrame(animate);
-    if (!started) return;
+    if (
+        !started
+        || !ball?.mesh
+        || !renderer
+        || !scene
+        || !camera
+        || !ballLight
+        || !neonLight1
+        || !neonLight2
+    ) return;
 
     const now = performance.now();
     // タブ復帰直後などの極端に大きい時間差を50msへ制限する。

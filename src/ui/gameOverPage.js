@@ -46,8 +46,9 @@ export function showGameOverPage() {
 
     retryButton.addEventListener('click', () => {
         window.dispatchEvent(new CustomEvent('game-start'));
-        overlay.remove();
     });
+
+    window.addEventListener('game-started', () => overlay.remove(), { once: true });
 
     modeSelectButton.addEventListener('click', () => {
         window.dispatchEvent(new CustomEvent('back-to-mode-select'));

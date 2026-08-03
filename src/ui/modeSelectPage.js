@@ -1,6 +1,10 @@
 import { Opponent, Difficulty } from '../constants.js';
 import { updateOpponentAndDifficulty } from '../gameController.js';
-import { requestGyro, resetCalibration } from '../input/gyro.js';
+import {
+    GyroFailureReason,
+    requestGyro,
+    resetCalibration
+} from '../input/gyro.js';
 import { isMobileDevice } from '../util.js';
 
 /**
@@ -119,23 +123,27 @@ export function showModeSelectPage() {
     gameStartBtn.addEventListener('click', async () => {
         if (isStarting) return;
 
+        isStarting = true;
+        setSelectionEnabled(false);
+
         if (isMobileDevice()) {
-            isStarting = true;
-            setSelectionEnabled(false);
             gameStartBtn.textContent = 'ジャイロ調整中…';
             gyroStatus.textContent =
                 '端末を横向きに持ち、動かさずにお待ちください';
 
             resetCalibration();
-            const gyroReady = await requestGyro();
-            if (!gyroReady) {
+            const gyroResult = await requestGyro();
+            if (!gyroResult.ok) {
                 isStarting = false;
                 setSelectionEnabled(true);
                 updateStartButtonText();
-                gyroStatus.textContent =
-                    'ジャイロを利用できません。センサーの許可を確認して再試行してください';
+                gyroStatus.textContent = getGyroFailureMessage(
+                    gyroResult.reason
+                );
                 return;
             }
+        } else {
+            gameStartBtn.textContent = 'ゲームを開始しています…';
         }
 
         window.dispatchEvent(new CustomEvent('game-start'));
@@ -147,9 +155,22 @@ export function showModeSelectPage() {
     modeSelectOverlay.appendChild(gyroStatus);
     document.body.appendChild(modeSelectOverlay);
 
-    window.addEventListener('game-start', () => {
+    const handleGameStarted = () => {
+        window.removeEventListener('game-start-failed', handleGameStartFailed);
         modeSelectOverlay.remove();
-    }, { once: true });
+    };
+
+    const handleGameStartFailed = (event) => {
+        if (!modeSelectOverlay.isConnected) return;
+        isStarting = false;
+        setSelectionEnabled(true);
+        updateStartButtonText();
+        gyroStatus.textContent = event.detail?.message
+            ?? 'ゲームを開始できませんでした。もう一度お試しください。';
+    };
+
+    window.addEventListener('game-started', handleGameStarted, { once: true });
+    window.addEventListener('game-start-failed', handleGameStartFailed);
 
     // 通常プレイへの導線を優先し、「かんたん」を初期選択にする
     updateSelectedElm(easyBtn);
@@ -189,6 +210,23 @@ export function showModeSelectPage() {
         difficultyBtns.forEach((button) => {
             button.disabled = !enabled;
         });
+    }
+}
+
+function getGyroFailureMessage(reason) {
+    switch (reason) {
+        case GyroFailureReason.PERMISSION_DENIED:
+            return 'ジャイロの利用が許可されませんでした。ブラウザの権限設定を確認してください';
+        case GyroFailureReason.PERMISSION_ERROR:
+            return 'ジャイロの利用許可を確認できませんでした。もう一度お試しください';
+        case GyroFailureReason.SENSOR_UNAVAILABLE:
+            return '端末からセンサー値を取得できませんでした。対応ブラウザで再試行してください';
+        case GyroFailureReason.CALIBRATION_TIMEOUT:
+            return 'ジャイロ調整が時間内に完了しませんでした。端末を動かさずに再試行してください';
+        case GyroFailureReason.UNSUPPORTED:
+            return 'この端末またはブラウザはジャイロ操作に対応していません';
+        default:
+            return 'ジャイロを利用できませんでした。もう一度お試しください';
     }
 }
 

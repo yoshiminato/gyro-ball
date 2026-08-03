@@ -51,12 +51,13 @@
   var MIN_DAMAGE_IMPACT_SPEED = 3;
 
   // src/core/renderer.js
-  var renderer;
-  var scene;
-  var camera;
-  var ballLight;
-  var neonLight1;
-  var neonLight2;
+  var renderer = null;
+  var scene = null;
+  var camera = null;
+  var ballLight = null;
+  var neonLight1 = null;
+  var neonLight2 = null;
+  var resizeListenerRegistered = false;
   var cubeColor = 4491519;
   function initRenderer() {
     renderer = new THREE.WebGLRenderer({
@@ -79,7 +80,10 @@
     createGround();
     createLights();
     createStars();
-    window.addEventListener("resize", onWindowResize);
+    if (!resizeListenerRegistered) {
+      window.addEventListener("resize", onWindowResize);
+      resizeListenerRegistered = true;
+    }
   }
   function createGround() {
     const groundGroup = new THREE.Group();
@@ -281,38 +285,50 @@
     return mesh;
   }
   function onWindowResize() {
+    if (!camera || !renderer) return;
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
   }
   function destroyRenderer() {
-    window.removeEventListener("resize", onWindowResize);
-    scene.traverse((obj) => {
-      if (obj.geometry) {
-        obj.geometry.dispose();
-      }
-      if (obj.material) {
-        if (Array.isArray(obj.material)) {
-          obj.material.forEach((m) => m.dispose());
+    var _a;
+    if (resizeListenerRegistered) {
+      window.removeEventListener("resize", onWindowResize);
+      resizeListenerRegistered = false;
+    }
+    if (scene) {
+      scene.traverse((object) => {
+        var _a2, _b, _c, _d;
+        (_b = (_a2 = object.geometry) == null ? void 0 : _a2.dispose) == null ? void 0 : _b.call(_a2);
+        if (Array.isArray(object.material)) {
+          object.material.forEach((material) => {
+            var _a3;
+            return (_a3 = material.dispose) == null ? void 0 : _a3.call(material);
+          });
         } else {
-          obj.material.dispose();
+          (_d = (_c = object.material) == null ? void 0 : _c.dispose) == null ? void 0 : _d.call(_c);
         }
+      });
+      while (scene.children.length > 0) {
+        scene.remove(scene.children[0]);
       }
-    });
-    while (scene.children.length > 0) {
-      scene.remove(scene.children[0]);
     }
     if (renderer) {
       renderer.dispose();
       renderer.forceContextLoss();
-      renderer.domElement.remove();
-      renderer = null;
+      (_a = renderer.domElement) == null ? void 0 : _a.remove();
     }
+    renderer = null;
+    scene = null;
+    camera = null;
+    ballLight = null;
+    neonLight1 = null;
+    neonLight2 = null;
   }
 
   // src/core/physics.js
-  var world;
-  var ballBody;
+  var world = null;
+  var ballBody = null;
   var FIELD_WALL_HEIGHT = 10;
   var FIELD_WALL_THICKNESS = 1;
   var FIELD_WALL_SEGMENTS = 64;
@@ -429,12 +445,15 @@
     };
   }
   function destroyPhysics() {
+    if (!world) return;
+    while (world.constraints.length > 0) {
+      world.removeConstraint(world.constraints[0]);
+    }
     while (world.bodies.length > 0) {
       world.removeBody(world.bodies[0]);
     }
-    while (world.constraints.length) {
-      world.removeConstraint(world.constraints[0]);
-    }
+    ballBody = null;
+    world = null;
   }
 
   // src/util.js
@@ -478,78 +497,243 @@
   var gyroGammaZero = 0;
   var gyroEnabled = false;
   var gyroCalibrated = false;
-  var lastGamma = Infinity;
-  var lastBeta = Infinity;
-  var resolveCalibration = null;
+  var GyroFailureReason = Object.freeze({
+    UNSUPPORTED: "unsupported",
+    PERMISSION_DENIED: "permission-denied",
+    PERMISSION_ERROR: "permission-error",
+    SENSOR_UNAVAILABLE: "sensor-unavailable",
+    CALIBRATION_TIMEOUT: "calibration-timeout",
+    CANCELLED: "cancelled"
+  });
+  var CALIBRATION_TIMEOUT_MS = 5e3;
+  var CALIBRATION_SAMPLE_COUNT = 8;
+  var STABLE_ANGLE_DELTA = 0.8;
+  var TURN_DEAD_ZONE = 1.5;
+  var FORWARD_DEAD_ZONE = 1.5;
+  var MAX_TURN_TILT = 45;
   var MAX_FORWARD_TILT = 25;
+  var lastBeta = null;
+  var lastGamma = null;
+  var calibrationSamples = [];
+  var validReadingCount = 0;
+  var calibrationScreenAngle = 0;
+  var calibrationTimeoutId = null;
+  var resolveCalibration = null;
+  var calibrationRequestId = 0;
+  var orientationListenerRegistered = false;
+  function result(ok, reason = null) {
+    return { ok, reason };
+  }
+  function getScreenAngle() {
+    var _a;
+    const modernAngle = Number((_a = screen.orientation) == null ? void 0 : _a.angle);
+    const legacyAngle = Number(window.orientation);
+    const rawAngle = Number.isFinite(modernAngle) ? modernAngle : Number.isFinite(legacyAngle) ? legacyAngle : 0;
+    const normalized = (rawAngle % 360 + 360) % 360;
+    return Math.round(normalized / 90) * 90 % 360;
+  }
+  function angularDifference(current, previous) {
+    return Math.atan2(
+      Math.sin((current - previous) * Math.PI / 180),
+      Math.cos((current - previous) * Math.PI / 180)
+    ) * 180 / Math.PI;
+  }
+  function resetSampleCollection() {
+    gyroEnabled = false;
+    gyroCalibrated = false;
+    lastBeta = null;
+    lastGamma = null;
+    calibrationSamples = [];
+    validReadingCount = 0;
+    calibrationScreenAngle = getScreenAngle();
+  }
+  function clearCalibrationTimeout() {
+    if (calibrationTimeoutId === null) return;
+    clearTimeout(calibrationTimeoutId);
+    calibrationTimeoutId = null;
+  }
+  function startCalibrationTimeout(requestId) {
+    clearCalibrationTimeout();
+    calibrationTimeoutId = setTimeout(() => {
+      if (requestId !== calibrationRequestId) return;
+      failCalibration(
+        validReadingCount === 0 ? GyroFailureReason.SENSOR_UNAVAILABLE : GyroFailureReason.CALIBRATION_TIMEOUT
+      );
+    }, CALIBRATION_TIMEOUT_MS);
+  }
+  function removeSensorListeners() {
+    var _a, _b;
+    window.removeEventListener("deviceorientation", saveZeroPoint, true);
+    if (!orientationListenerRegistered) return;
+    (_b = (_a = screen.orientation) == null ? void 0 : _a.removeEventListener) == null ? void 0 : _b.call(_a, "change", handleOrientationChange);
+    window.removeEventListener("orientationchange", handleOrientationChange);
+    orientationListenerRegistered = false;
+  }
+  function enableSensorListeners() {
+    var _a, _b;
+    window.addEventListener("deviceorientation", saveZeroPoint, true);
+    if (orientationListenerRegistered) return;
+    (_b = (_a = screen.orientation) == null ? void 0 : _a.addEventListener) == null ? void 0 : _b.call(_a, "change", handleOrientationChange);
+    window.addEventListener("orientationchange", handleOrientationChange);
+    orientationListenerRegistered = true;
+  }
+  function settleCalibration(calibrationResult) {
+    clearCalibrationTimeout();
+    const resolve = resolveCalibration;
+    resolveCalibration = null;
+    resolve == null ? void 0 : resolve(calibrationResult);
+  }
+  function failCalibration(reason) {
+    gyroEnabled = false;
+    gyroCalibrated = false;
+    removeSensorListeners();
+    settleCalibration(result(false, reason));
+  }
+  function completeCalibration() {
+    const sampleCount = calibrationSamples.length;
+    gyroBetaZero = calibrationSamples.reduce(
+      (sum, sample) => sum + sample.beta,
+      0
+    ) / sampleCount;
+    gyroGammaZero = calibrationSamples.reduce(
+      (sum, sample) => sum + sample.gamma,
+      0
+    ) / sampleCount;
+    gyroCalibrated = true;
+    gyroEnabled = true;
+    settleCalibration(result(true));
+  }
   function requestGyro() {
     return __async(this, null, function* () {
-      if (gyroEnabled) return true;
-      window.removeEventListener("deviceorientation", saveZeroPoint, true);
+      if (gyroEnabled) return result(true);
+      removeSensorListeners();
+      clearCalibrationTimeout();
+      resetSampleCollection();
+      const requestId = ++calibrationRequestId;
       if (typeof DeviceOrientationEvent === "undefined" || !isMobileDevice()) {
-        return false;
+        return result(false, GyroFailureReason.UNSUPPORTED);
       }
       if (typeof DeviceOrientationEvent.requestPermission === "function") {
         try {
           const permission = yield DeviceOrientationEvent.requestPermission();
-          if (permission !== "granted") return false;
+          if (requestId !== calibrationRequestId) {
+            return result(false, GyroFailureReason.CANCELLED);
+          }
+          if (permission !== "granted") {
+            return result(false, GyroFailureReason.PERMISSION_DENIED);
+          }
         } catch (error) {
           console.warn("\u30B8\u30E3\u30A4\u30ED\u30BB\u30F3\u30B5\u30FC\u306E\u5229\u7528\u8A31\u53EF\u3092\u53D6\u5F97\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F", error);
-          return false;
+          return result(false, GyroFailureReason.PERMISSION_ERROR);
         }
       }
       return new Promise((resolve) => {
         resolveCalibration = resolve;
-        enableGyro();
+        enableSensorListeners();
+        startCalibrationTimeout(requestId);
       });
     });
   }
-  function enableGyro() {
-    window.addEventListener("deviceorientation", saveZeroPoint, true);
-  }
-  function saveZeroPoint(e) {
-    if (e.beta === null || e.gamma === null) return;
-    gyroBeta = e.beta || 0;
-    gyroGamma = e.gamma || 0;
-    if (gyroCalibrated) return;
-    const dBeta = Math.abs(e.beta - lastBeta);
-    const dGamma = Math.abs(e.gamma - lastGamma);
-    lastBeta = e.beta;
-    lastGamma = e.gamma;
-    if (dBeta > 0.5 || dGamma > 0.5) {
-      return;
+  function saveZeroPoint(event) {
+    if (!Number.isFinite(event.beta) || !Number.isFinite(event.gamma)) return;
+    gyroBeta = event.beta;
+    gyroGamma = event.gamma;
+    if (getScreenAngle() !== calibrationScreenAngle) {
+      resetSampleCollection();
+      if (resolveCalibration) {
+        startCalibrationTimeout(calibrationRequestId);
+      }
     }
-    ;
-    gyroBetaZero = e.beta || 0;
-    gyroGammaZero = e.gamma || 0;
-    gyroCalibrated = true;
-    gyroEnabled = true;
-    resolveCalibration == null ? void 0 : resolveCalibration(true);
-    resolveCalibration = null;
+    if (gyroCalibrated) return;
+    validReadingCount++;
+    const sample = { beta: event.beta, gamma: event.gamma };
+    if (lastBeta === null || lastGamma === null) {
+      calibrationSamples = [sample];
+    } else {
+      const betaDelta = Math.abs(angularDifference(event.beta, lastBeta));
+      const gammaDelta = Math.abs(angularDifference(event.gamma, lastGamma));
+      if (betaDelta <= STABLE_ANGLE_DELTA && gammaDelta <= STABLE_ANGLE_DELTA) {
+        calibrationSamples.push(sample);
+      } else {
+        calibrationSamples = [sample];
+      }
+    }
+    lastBeta = event.beta;
+    lastGamma = event.gamma;
+    if (calibrationSamples.length >= CALIBRATION_SAMPLE_COUNT) {
+      completeCalibration();
+    }
+  }
+  function handleOrientationChange() {
+    if (getScreenAngle() === calibrationScreenAngle) return;
+    resetSampleCollection();
+    if (resolveCalibration) {
+      startCalibrationTimeout(calibrationRequestId);
+    }
   }
   function resetCalibration() {
-    resolveCalibration == null ? void 0 : resolveCalibration(false);
+    calibrationRequestId++;
+    removeSensorListeners();
+    clearCalibrationTimeout();
+    const resolve = resolveCalibration;
     resolveCalibration = null;
-    gyroEnabled = false;
-    gyroCalibrated = false;
-    lastBeta = Infinity;
-    lastGamma = Infinity;
+    resolve == null ? void 0 : resolve(result(false, GyroFailureReason.CANCELLED));
+    gyroBeta = 0;
+    gyroGamma = 0;
+    gyroBetaZero = 0;
+    gyroGammaZero = 0;
+    resetSampleCollection();
   }
-  function calculateHeadingDeltaFromGyro(dt) {
-    const beta2zero = Math.max(-45, Math.min(45, gyroBeta - gyroBetaZero));
-    return beta2zero / 45 * Ball.HEADING_SCALE * dt;
+  function mapTiltToScreen(betaDelta, gammaDelta, screenAngle) {
+    switch (screenAngle) {
+      case 90:
+        return { turn: betaDelta, forward: gammaDelta };
+      case 180:
+        return { turn: -gammaDelta, forward: -betaDelta };
+      case 270:
+        return { turn: -betaDelta, forward: -gammaDelta };
+      default:
+        return { turn: gammaDelta, forward: betaDelta };
+    }
+  }
+  function applyDeadZone(value, deadZone) {
+    const magnitude = Math.abs(value);
+    if (magnitude <= deadZone) return 0;
+    return Math.sign(value) * (magnitude - deadZone);
+  }
+  function getCurrentTilt() {
+    const betaDelta = angularDifference(gyroBeta, gyroBetaZero);
+    const gammaDelta = angularDifference(gyroGamma, gyroGammaZero);
+    const tilt = mapTiltToScreen(
+      betaDelta,
+      gammaDelta,
+      calibrationScreenAngle
+    );
+    return {
+      turn: applyDeadZone(tilt.turn, TURN_DEAD_ZONE),
+      forward: applyDeadZone(tilt.forward, FORWARD_DEAD_ZONE)
+    };
+  }
+  function calculateHeadingDeltaFromGyro(dt, turnTilt) {
+    const clampedTilt = Math.max(
+      -MAX_TURN_TILT,
+      Math.min(MAX_TURN_TILT, turnTilt)
+    );
+    return clampedTilt / MAX_TURN_TILT * Ball.HEADING_SCALE * dt;
   }
   function calculateForceFromGyro(ball2, dt) {
-    const headingDelta = calculateHeadingDeltaFromGyro(dt);
-    ball2.heading += headingDelta;
-    const heading = ball2.heading;
-    const gamma2zero = Math.max(
+    if (!gyroEnabled || !gyroCalibrated) {
+      return new CANNON.Vec3(0, 0, 0);
+    }
+    const tilt = getCurrentTilt();
+    ball2.heading += calculateHeadingDeltaFromGyro(dt, tilt.turn);
+    const forwardTilt = Math.max(
       -MAX_FORWARD_TILT,
-      Math.min(MAX_FORWARD_TILT, gyroGamma - gyroGammaZero)
+      Math.min(MAX_FORWARD_TILT, tilt.forward)
     );
-    const forwardForce = gamma2zero / MAX_FORWARD_TILT * Ball.FORCE_SCALE;
-    const fx = Math.sin(heading) * forwardForce;
-    const fz = -Math.cos(heading) * forwardForce;
+    const forwardForce = forwardTilt / MAX_FORWARD_TILT * Ball.FORCE_SCALE;
+    const fx = Math.sin(ball2.heading) * forwardForce;
+    const fz = -Math.cos(ball2.heading) * forwardForce;
     return new CANNON.Vec3(fx, 0, fz);
   }
 
@@ -2668,14 +2852,14 @@
       );
       let closestDistance = Infinity;
       let hasHit = false;
-      world.raycastAll(from, to, { skipBackfaces: true }, (result) => {
-        if (this.bodies.includes(result.body) || result.body === (target == null ? void 0 : target.body)) return;
-        if (result.distance >= closestDistance) return;
-        closestDistance = result.distance;
+      world.raycastAll(from, to, { skipBackfaces: true }, (result2) => {
+        if (this.bodies.includes(result2.body) || result2.body === (target == null ? void 0 : target.body)) return;
+        if (result2.distance >= closestDistance) return;
+        closestDistance = result2.distance;
         this.lightRayHitPoint.set(
-          result.hitPointWorld.x,
-          result.hitPointWorld.y,
-          result.hitPointWorld.z
+          result2.hitPointWorld.x,
+          result2.hitPointWorld.y,
+          result2.hitPointWorld.z
         );
         hasHit = true;
       });
@@ -2948,48 +3132,80 @@
   }
   function returnToModeSelect() {
     destroyGame();
-    gameState = GameState.IDLE;
+  }
+  function runCleanup(label, cleanup) {
+    try {
+      cleanup();
+    } catch (error) {
+      console.warn(`${label}\u306E\u7834\u68C4\u306B\u5931\u6557\u3057\u307E\u3057\u305F`, error);
+    }
+  }
+  function cleanupGameResources(cubeToDestroy = cube, snakeToDestroy = snake) {
+    runCleanup("Cube\u30C1\u30E5\u30FC\u30C8\u30EA\u30A2\u30EBUI", () => {
+      var _a;
+      (_a = cubeToDestroy == null ? void 0 : cubeToDestroy.tutorial) == null ? void 0 : _a.destroyUi();
+    });
+    runCleanup("Snake\u30C1\u30E5\u30FC\u30C8\u30EA\u30A2\u30EBUI", () => {
+      var _a;
+      (_a = snakeToDestroy == null ? void 0 : snakeToDestroy.tutorial) == null ? void 0 : _a.destroyUi();
+    });
+    runCleanup("\u30D2\u30C3\u30C8\u30A8\u30D5\u30A7\u30AF\u30C8", resetHitEffects);
+    runCleanup("\u30EC\u30F3\u30C0\u30E9\u30FC", destroyRenderer);
+    runCleanup("\u7269\u7406\u30A8\u30F3\u30B8\u30F3", destroyPhysics);
   }
   function destroyGame() {
-    var _a, _b;
     started = false;
+    gameState = GameState.IDLE;
     stopBgm();
     resetGameClock();
-    (_a = cube == null ? void 0 : cube.tutorial) == null ? void 0 : _a.destroyUi();
-    (_b = snake == null ? void 0 : snake.tutorial) == null ? void 0 : _b.destroyUi();
-    resetHitEffects();
-    try {
-      destroyRenderer();
-    } catch (error) {
-      console.warn("\u30EC\u30F3\u30C0\u30E9\u30FC\u306E\u7834\u68C4\u306B\u5931\u6557\u3057\u307E\u3057\u305F", error);
-    }
-    try {
-      destroyPhysics();
-    } catch (error) {
-      console.warn("\u7269\u7406\u30A8\u30F3\u30B8\u30F3\u306E\u7834\u68C4\u306B\u5931\u6557\u3057\u307E\u3057\u305F", error);
-    }
+    cleanupGameResources();
     ball = null;
     cube = null;
     snake = null;
   }
   function startGame() {
-    resetGameClock();
-    started = true;
-    gameState = GameState.PLAYING;
-    initRenderer();
-    initPhysics();
-    playGameBgm(Number(difficulty) === Difficulty.TUTORIAL);
-    ball = new Ball();
-    if (Number(difficulty) === Difficulty.TUTORIAL) {
-      ball.setInputEnabled(false);
+    const selectedOpponent = Number(opponent);
+    const selectedDifficulty = Number(difficulty);
+    if (!Object.prototype.hasOwnProperty.call(DifficultyNames, selectedDifficulty)) {
+      throw new Error(`\u672A\u5BFE\u5FDC\u306E\u96E3\u6613\u5EA6\u3067\u3059: ${difficulty}`);
     }
-    switch (Number(opponent)) {
-      case Opponent.CUBE:
-        cube = new Cube(difficulty);
-        break;
-      case Opponent.SNAKE:
-        snake = new Snake(difficulty);
-        break;
+    if (selectedOpponent !== Opponent.CUBE && selectedOpponent !== Opponent.SNAKE) {
+      throw new Error(`\u672A\u5BFE\u5FDC\u306E\u5BFE\u6226\u76F8\u624B\u3067\u3059: ${opponent}`);
+    }
+    let nextBall = null;
+    let nextCube = null;
+    let nextSnake = null;
+    started = false;
+    gameState = GameState.IDLE;
+    resetGameClock();
+    try {
+      initRenderer();
+      initPhysics();
+      nextBall = new Ball();
+      if (selectedDifficulty === Difficulty.TUTORIAL) {
+        nextBall.setInputEnabled(false);
+      }
+      if (selectedOpponent === Opponent.CUBE) {
+        nextCube = new Cube(selectedDifficulty);
+      } else {
+        nextSnake = new Snake(selectedDifficulty);
+      }
+      ball = nextBall;
+      cube = nextCube;
+      snake = nextSnake;
+      playGameBgm(selectedDifficulty === Difficulty.TUTORIAL);
+      gameState = GameState.PLAYING;
+      started = true;
+    } catch (error) {
+      cleanupGameResources(nextCube, nextSnake);
+      stopBgm();
+      resetGameClock();
+      ball = null;
+      cube = null;
+      snake = null;
+      started = false;
+      gameState = GameState.IDLE;
+      throw error;
     }
   }
   function judgeCanJump(physicsWorld) {
@@ -3007,7 +3223,7 @@
     return false;
   }
   function updateGameState(dt) {
-    if (!started || gameState !== GameState.PLAYING) return;
+    if (!started || gameState !== GameState.PLAYING || !world || !(ball == null ? void 0 : ball.body) || !(ball == null ? void 0 : ball.mesh)) return;
     ball.canJump = judgeCanJump(world);
     ball.update(dt);
     switch (Number(opponent)) {
@@ -3134,20 +3350,24 @@
     });
     gameStartBtn.addEventListener("click", () => __async(null, null, function* () {
       if (isStarting) return;
+      isStarting = true;
+      setSelectionEnabled(false);
       if (isMobileDevice()) {
-        isStarting = true;
-        setSelectionEnabled(false);
         gameStartBtn.textContent = "\u30B8\u30E3\u30A4\u30ED\u8ABF\u6574\u4E2D\u2026";
         gyroStatus.textContent = "\u7AEF\u672B\u3092\u6A2A\u5411\u304D\u306B\u6301\u3061\u3001\u52D5\u304B\u3055\u305A\u306B\u304A\u5F85\u3061\u304F\u3060\u3055\u3044";
         resetCalibration();
-        const gyroReady = yield requestGyro();
-        if (!gyroReady) {
+        const gyroResult = yield requestGyro();
+        if (!gyroResult.ok) {
           isStarting = false;
           setSelectionEnabled(true);
           updateStartButtonText();
-          gyroStatus.textContent = "\u30B8\u30E3\u30A4\u30ED\u3092\u5229\u7528\u3067\u304D\u307E\u305B\u3093\u3002\u30BB\u30F3\u30B5\u30FC\u306E\u8A31\u53EF\u3092\u78BA\u8A8D\u3057\u3066\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044";
+          gyroStatus.textContent = getGyroFailureMessage(
+            gyroResult.reason
+          );
           return;
         }
+      } else {
+        gameStartBtn.textContent = "\u30B2\u30FC\u30E0\u3092\u958B\u59CB\u3057\u3066\u3044\u307E\u3059\u2026";
       }
       window.dispatchEvent(new CustomEvent("game-start"));
     }));
@@ -3156,9 +3376,20 @@
     modeSelectOverlay.appendChild(gameStartBtn);
     modeSelectOverlay.appendChild(gyroStatus);
     document.body.appendChild(modeSelectOverlay);
-    window.addEventListener("game-start", () => {
+    const handleGameStarted = () => {
+      window.removeEventListener("game-start-failed", handleGameStartFailed);
       modeSelectOverlay.remove();
-    }, { once: true });
+    };
+    const handleGameStartFailed = (event) => {
+      var _a, _b;
+      if (!modeSelectOverlay.isConnected) return;
+      isStarting = false;
+      setSelectionEnabled(true);
+      updateStartButtonText();
+      gyroStatus.textContent = (_b = (_a = event.detail) == null ? void 0 : _a.message) != null ? _b : "\u30B2\u30FC\u30E0\u3092\u958B\u59CB\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002";
+    };
+    window.addEventListener("game-started", handleGameStarted, { once: true });
+    window.addEventListener("game-start-failed", handleGameStartFailed);
     updateSelectedElm(easyBtn);
     function updateSelectedElm(selectedElm) {
       difficultyBtns.forEach((button) => {
@@ -3179,6 +3410,22 @@
       difficultyBtns.forEach((button) => {
         button.disabled = !enabled;
       });
+    }
+  }
+  function getGyroFailureMessage(reason) {
+    switch (reason) {
+      case GyroFailureReason.PERMISSION_DENIED:
+        return "\u30B8\u30E3\u30A4\u30ED\u306E\u5229\u7528\u304C\u8A31\u53EF\u3055\u308C\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u30D6\u30E9\u30A6\u30B6\u306E\u6A29\u9650\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044";
+      case GyroFailureReason.PERMISSION_ERROR:
+        return "\u30B8\u30E3\u30A4\u30ED\u306E\u5229\u7528\u8A31\u53EF\u3092\u78BA\u8A8D\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044";
+      case GyroFailureReason.SENSOR_UNAVAILABLE:
+        return "\u7AEF\u672B\u304B\u3089\u30BB\u30F3\u30B5\u30FC\u5024\u3092\u53D6\u5F97\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u5BFE\u5FDC\u30D6\u30E9\u30A6\u30B6\u3067\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044";
+      case GyroFailureReason.CALIBRATION_TIMEOUT:
+        return "\u30B8\u30E3\u30A4\u30ED\u8ABF\u6574\u304C\u6642\u9593\u5185\u306B\u5B8C\u4E86\u3057\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u7AEF\u672B\u3092\u52D5\u304B\u3055\u305A\u306B\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044";
+      case GyroFailureReason.UNSUPPORTED:
+        return "\u3053\u306E\u7AEF\u672B\u307E\u305F\u306F\u30D6\u30E9\u30A6\u30B6\u306F\u30B8\u30E3\u30A4\u30ED\u64CD\u4F5C\u306B\u5BFE\u5FDC\u3057\u3066\u3044\u307E\u305B\u3093";
+      default:
+        return "\u30B8\u30E3\u30A4\u30ED\u3092\u5229\u7528\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044";
     }
   }
   function createDifficultyButton(text, className, difficulty2) {
@@ -3216,8 +3463,8 @@
     modeSelectButton.textContent = "\u30E2\u30FC\u30C9\u9078\u629E\u306B\u623B\u308B";
     retryButton.addEventListener("click", () => {
       window.dispatchEvent(new CustomEvent("game-start"));
-      overlay.remove();
     });
+    window.addEventListener("game-started", () => overlay.remove(), { once: true });
     modeSelectButton.addEventListener("click", () => {
       window.dispatchEvent(new CustomEvent("back-to-mode-select"));
       overlay.remove();
@@ -3257,8 +3504,8 @@
     modeSelectButton.textContent = "\u30E2\u30FC\u30C9\u9078\u629E\u306B\u623B\u308B";
     retryButton.addEventListener("click", () => {
       window.dispatchEvent(new CustomEvent("game-start"));
-      overlay.remove();
     });
+    window.addEventListener("game-started", () => overlay.remove(), { once: true });
     modeSelectButton.addEventListener("click", () => {
       window.dispatchEvent(new CustomEvent("back-to-mode-select"));
       overlay.remove();
@@ -3303,7 +3550,7 @@
   var pauseButton = null;
   var pauseOverlay = null;
   function registerPauseUi() {
-    window.addEventListener("game-start", showPauseButton);
+    window.addEventListener("game-started", showPauseButton);
     window.addEventListener("game-over", removePauseUi);
     window.addEventListener("game-clear", removePauseUi);
     window.addEventListener("back-to-mode-select", removePauseUi);
@@ -3384,28 +3631,39 @@
     controlHint.textContent = isMobileDevice() ? "\u79FB\u52D5\uFF1A\u7AEF\u672B\u3092\u50BE\u3051\u308B\u3000\u30B8\u30E3\u30F3\u30D7\uFF1A\u753B\u9762\u3092\u30BF\u30C3\u30D7" : "\u79FB\u52D5\uFF1AWASD / \u77E2\u5370\u30AD\u30FC\u3000\u30B8\u30E3\u30F3\u30D7\uFF1A\u30B9\u30DA\u30FC\u30B9\u30AD\u30FC";
   }
   function init() {
+    var _a;
     try {
       destroyGame();
-    } catch (error) {
-      console.warn("\u30B2\u30FC\u30E0\u306E\u7834\u68C4\u306B\u5931\u6557\u3057\u307E\u3057\u305F", error);
-    }
-    try {
       startGame();
+      if (!((_a = ball) == null ? void 0 : _a.mesh) || !renderer || !scene || !camera || !ballLight || !neonLight1 || !neonLight2) {
+        throw new Error("\u30B2\u30FC\u30E0\u306E\u5FC5\u9808\u30AA\u30D6\u30B8\u30A7\u30AF\u30C8\u3092\u751F\u6210\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F");
+      }
+      setupEvents();
+      lastTime = performance.now();
+      renderer.render(scene, camera);
+      window.dispatchEvent(new CustomEvent("game-started"));
     } catch (error) {
-      console.warn("\u30B2\u30FC\u30E0\u306E\u521D\u671F\u5316\u306B\u5931\u6557\u3057\u307E\u3057\u305F", error);
-      return;
+      console.error("\u30B2\u30FC\u30E0\u306E\u521D\u671F\u5316\u306B\u5931\u6557\u3057\u307E\u3057\u305F", error);
+      try {
+        destroyGame();
+      } catch (cleanupError) {
+        console.error("\u521D\u671F\u5316\u5931\u6557\u5F8C\u306E\u5F8C\u59CB\u672B\u306B\u5931\u6557\u3057\u307E\u3057\u305F", cleanupError);
+      }
+      window.dispatchEvent(new CustomEvent("game-start-failed", {
+        detail: {
+          message: "\u30B2\u30FC\u30E0\u3092\u958B\u59CB\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002"
+        }
+      }));
     }
-    setupEvents();
-    lastTime = performance.now();
-    renderer.render(scene, camera);
   }
   function setupEvents() {
     registerKeyEvent(ball);
     registerTouchEvent(ball);
   }
   function animate() {
+    var _a;
     requestAnimationFrame(animate);
-    if (!started) return;
+    if (!started || !((_a = ball) == null ? void 0 : _a.mesh) || !renderer || !scene || !camera || !ballLight || !neonLight1 || !neonLight2) return;
     const now = performance.now();
     const dt = Math.min((now - lastTime) / 1e3, 0.05);
     lastTime = now;

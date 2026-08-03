@@ -3,7 +3,12 @@ import { destroyPhysics,  initPhysics, world }  from './core/physics.js';
 import { Ball } from './object/ball.js';
 import { Cube } from './object/cube.js';
 import { Snake } from './object/snake.js';
-import { Opponent, Difficulty, GameState } from './constants.js';
+import {
+    Opponent,
+    Difficulty,
+    DifficultyNames,
+    GameState
+} from './constants.js';
 import { pauseGameClock, resetGameClock, resumeGameClock } from './core/gameClock.js';
 import { resetHitEffects } from './core/hitEffects.js';
 import {
@@ -92,7 +97,26 @@ function handleGameClear() {
 
 function returnToModeSelect() {
     destroyGame();
-    gameState = GameState.IDLE;
+}
+
+function runCleanup(label, cleanup) {
+    try {
+        cleanup();
+    } catch (error) {
+        console.warn(`${label}の破棄に失敗しました`, error);
+    }
+}
+
+function cleanupGameResources(cubeToDestroy = cube, snakeToDestroy = snake) {
+    runCleanup('CubeチュートリアルUI', () => {
+        cubeToDestroy?.tutorial?.destroyUi();
+    });
+    runCleanup('SnakeチュートリアルUI', () => {
+        snakeToDestroy?.tutorial?.destroyUi();
+    });
+    runCleanup('ヒットエフェクト', resetHitEffects);
+    runCleanup('レンダラー', destroyRenderer);
+    runCleanup('物理エンジン', destroyPhysics);
 }
 
 /**
@@ -102,21 +126,10 @@ function returnToModeSelect() {
  */
 export function destroyGame() {
     started = false;
+    gameState = GameState.IDLE;
     stopBgm();
     resetGameClock();
-    cube?.tutorial?.destroyUi();
-    snake?.tutorial?.destroyUi();
-    resetHitEffects();
-    try {
-        destroyRenderer();
-    } catch (error) {
-        console.warn('レンダラーの破棄に失敗しました', error);
-    }
-    try {
-        destroyPhysics();
-    } catch (error) {
-        console.warn('物理エンジンの破棄に失敗しました', error);
-    }
+    cleanupGameResources();
     ball = null;
     cube = null;
     snake = null;
@@ -127,27 +140,60 @@ export function destroyGame() {
  * @returns {void}
  */
 export function startGame() {
-    resetGameClock();
-    started = true;
-    gameState = GameState.PLAYING;
-    initRenderer();
-    initPhysics();
-    playGameBgm(Number(difficulty) === Difficulty.TUTORIAL);
+    const selectedOpponent = Number(opponent);
+    const selectedDifficulty = Number(difficulty);
 
-    ball = new Ball();
-
-    // チュートリアルの説明中は、OKが押されるまで操作を受け付けない
-    if (Number(difficulty) === Difficulty.TUTORIAL) {
-        ball.setInputEnabled(false);
+    if (!Object.prototype.hasOwnProperty.call(DifficultyNames, selectedDifficulty)) {
+        throw new Error(`未対応の難易度です: ${difficulty}`);
+    }
+    if (
+        selectedOpponent !== Opponent.CUBE
+        && selectedOpponent !== Opponent.SNAKE
+    ) {
+        throw new Error(`未対応の対戦相手です: ${opponent}`);
     }
 
-    switch (Number(opponent)) {
-        case Opponent.CUBE:
-            cube = new Cube(difficulty);
-            break;
-        case Opponent.SNAKE:
-            snake = new Snake(difficulty);
-            break;
+    let nextBall = null;
+    let nextCube = null;
+    let nextSnake = null;
+
+    // 初期化がすべて完了するまで公開中のゲーム状態を開始扱いにしない。
+    started = false;
+    gameState = GameState.IDLE;
+    resetGameClock();
+
+    try {
+        initRenderer();
+        initPhysics();
+
+        nextBall = new Ball();
+        if (selectedDifficulty === Difficulty.TUTORIAL) {
+            nextBall.setInputEnabled(false);
+        }
+
+        if (selectedOpponent === Opponent.CUBE) {
+            nextCube = new Cube(selectedDifficulty);
+        } else {
+            nextSnake = new Snake(selectedDifficulty);
+        }
+
+        ball = nextBall;
+        cube = nextCube;
+        snake = nextSnake;
+        playGameBgm(selectedDifficulty === Difficulty.TUTORIAL);
+
+        gameState = GameState.PLAYING;
+        started = true;
+    } catch (error) {
+        cleanupGameResources(nextCube, nextSnake);
+        stopBgm();
+        resetGameClock();
+        ball = null;
+        cube = null;
+        snake = null;
+        started = false;
+        gameState = GameState.IDLE;
+        throw error;
     }
 }
 
@@ -181,7 +227,13 @@ function judgeCanJump(physicsWorld) {
  * @returns {void}
  */
 export function updateGameState(dt) {
-    if (!started || gameState !== GameState.PLAYING) return;
+    if (
+        !started
+        || gameState !== GameState.PLAYING
+        || !world
+        || !ball?.body
+        || !ball?.mesh
+    ) return;
 
     // ジャンプ可能判定
     ball.canJump = judgeCanJump(world);

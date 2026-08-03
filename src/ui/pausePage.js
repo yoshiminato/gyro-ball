@@ -14,7 +14,7 @@ let pauseOverlay = null;
  * @returns {void}
  */
 export function registerPauseUi() {
-    window.addEventListener('game-start', showPauseButton);
+    window.addEventListener('game-started', showPauseButton);
     window.addEventListener('game-over', removePauseUi);
     window.addEventListener('game-clear', removePauseUi);
     window.addEventListener('back-to-mode-select', removePauseUi);
