@@ -1480,7 +1480,6 @@
   var CubeTutorial = _CubeTutorial;
 
   // src/audioManager.js
-  var import_meta = {};
   var tracks = {
     menu: createTrack("asset/audio/dark_things_loop.mp3", 0.3),
     game: createTrack("asset/audio/fight_looped.wav", 0.28),
@@ -1489,12 +1488,98 @@
     gameOver: createTrack("asset/audio/GameOver.ogg", 0.25, false)
   };
   var enemyHitSound = createTrack(
-    new URL("../asset/audio/enemy-hit.ogg", import_meta.url).href,
-    0.9,
+    "asset/audio/enemy-hit.ogg",
+    0.38,
     false
   );
   var currentTrack = null;
   var playbackRequested = false;
+  var sfxAudioContext = null;
+  var sfxMasterGain = null;
+  function getSfxAudioContext() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    if (!sfxAudioContext) {
+      sfxAudioContext = new AudioContextClass();
+      sfxMasterGain = sfxAudioContext.createGain();
+      const compressor = sfxAudioContext.createDynamicsCompressor();
+      compressor.threshold.value = -12;
+      compressor.knee.value = 10;
+      compressor.ratio.value = 5;
+      compressor.attack.value = 2e-3;
+      compressor.release.value = 0.12;
+      sfxMasterGain.gain.value = 0.72;
+      sfxMasterGain.connect(compressor).connect(sfxAudioContext.destination);
+    }
+    if (sfxAudioContext.state === "suspended") {
+      sfxAudioContext.resume().catch(() => {
+      });
+    }
+    return sfxAudioContext;
+  }
+  function createImpactNoise(context, startAt, isWeakPoint) {
+    const duration = isWeakPoint ? 0.18 : 0.13;
+    const buffer = context.createBuffer(
+      1,
+      Math.ceil(context.sampleRate * duration),
+      context.sampleRate
+    );
+    const samples = buffer.getChannelData(0);
+    for (let i = 0; i < samples.length; i++) {
+      const decay = Math.pow(1 - i / samples.length, 3);
+      samples[i] = (Math.random() * 2 - 1) * decay;
+    }
+    const source = context.createBufferSource();
+    const filter = context.createBiquadFilter();
+    const gain = context.createGain();
+    source.buffer = buffer;
+    filter.type = "bandpass";
+    filter.frequency.value = isWeakPoint ? 1350 : 850;
+    filter.Q.value = 0.8;
+    gain.gain.setValueAtTime(isWeakPoint ? 0.7 : 0.48, startAt);
+    gain.gain.exponentialRampToValueAtTime(1e-3, startAt + duration);
+    source.connect(filter).connect(gain).connect(sfxMasterGain);
+    source.start(startAt);
+    source.stop(startAt + duration);
+  }
+  function createImpactThump(context, startAt, isWeakPoint) {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const duration = isWeakPoint ? 0.24 : 0.17;
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(isWeakPoint ? 155 : 120, startAt);
+    oscillator.frequency.exponentialRampToValueAtTime(42, startAt + duration);
+    gain.gain.setValueAtTime(isWeakPoint ? 0.95 : 0.65, startAt);
+    gain.gain.exponentialRampToValueAtTime(1e-3, startAt + duration);
+    oscillator.connect(gain).connect(sfxMasterGain);
+    oscillator.start(startAt);
+    oscillator.stop(startAt + duration);
+  }
+  function createWeakPointChime(context, startAt) {
+    [740, 1110].forEach((frequency, index) => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = index === 0 ? "triangle" : "sine";
+      oscillator.frequency.setValueAtTime(frequency, startAt);
+      oscillator.frequency.exponentialRampToValueAtTime(
+        frequency * 0.72,
+        startAt + 0.2
+      );
+      gain.gain.setValueAtTime(index === 0 ? 0.32 : 0.18, startAt);
+      gain.gain.exponentialRampToValueAtTime(1e-3, startAt + 0.24);
+      oscillator.connect(gain).connect(sfxMasterGain);
+      oscillator.start(startAt);
+      oscillator.stop(startAt + 0.24);
+    });
+  }
+  function playSynthesizedImpact(isWeakPoint) {
+    const context = getSfxAudioContext();
+    if (!context || !sfxMasterGain) return;
+    const startAt = context.currentTime + 5e-3;
+    createImpactThump(context, startAt, isWeakPoint);
+    createImpactNoise(context, startAt, isWeakPoint);
+    if (isWeakPoint) createWeakPointChime(context, startAt);
+  }
   function createTrack(src, volume, loop = true) {
     const audio = new Audio(src);
     audio.loop = loop;
@@ -1563,14 +1648,201 @@
     currentTrack = null;
   }
   function playEnemyHitSfx(isWeakPoint = false) {
+    playSynthesizedImpact(isWeakPoint);
     const sound = enemyHitSound.cloneNode();
     sound.volume = enemyHitSound.volume;
-    sound.playbackRate = isWeakPoint ? 1.12 : 1;
+    sound.playbackRate = isWeakPoint ? 1.08 : 0.86;
     sound.play().catch((error) => {
       if ((error == null ? void 0 : error.name) !== "NotAllowedError" && (error == null ? void 0 : error.name) !== "AbortError") {
         console.warn("\u653B\u6483\u52B9\u679C\u97F3\u3092\u518D\u751F\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F", error);
       }
     });
+  }
+
+  // src/core/hitEffects.js
+  var effects = [];
+  var flashes = /* @__PURE__ */ new Map();
+  var previousShakeOffset = new THREE.Vector3();
+  var shakeStrength = 0;
+  var shakeTime = 0;
+  var shakeDuration = 0;
+  var sparkGeometry = new THREE.SphereGeometry(0.075, 6, 6);
+  function getContactPoint(event, enemyBody) {
+    const contact = event.contact;
+    const relativePoint = contact.bi === enemyBody ? contact.ri : contact.rj;
+    return new THREE.Vector3(
+      enemyBody.position.x + relativePoint.x,
+      enemyBody.position.y + relativePoint.y,
+      enemyBody.position.z + relativePoint.z
+    );
+  }
+  function flashMesh(mesh, isWeakPoint) {
+    if (!mesh) return;
+    let state = flashes.get(mesh);
+    if (!state) {
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      state = {
+        materials,
+        originals: materials.map((material) => {
+          var _a;
+          return {
+            emissive: (_a = material.emissive) == null ? void 0 : _a.clone(),
+            emissiveIntensity: material.emissiveIntensity
+          };
+        }),
+        remaining: 0
+      };
+      flashes.set(mesh, state);
+    }
+    state.remaining = Math.max(state.remaining, isWeakPoint ? 0.16 : 0.09);
+    state.materials.forEach((material) => {
+      if (!material.emissive) return;
+      material.emissive.setHex(16777215);
+      material.emissiveIntensity = isWeakPoint ? 2.8 : 1.8;
+    });
+  }
+  function restoreFlash(mesh, state) {
+    state.materials.forEach((material, index) => {
+      const original = state.originals[index];
+      if (!material.emissive || !original.emissive) return;
+      material.emissive.copy(original.emissive);
+      material.emissiveIntensity = original.emissiveIntensity;
+    });
+    flashes.delete(mesh);
+  }
+  function createSparks(position, isWeakPoint, impactSpeed) {
+    const count = isWeakPoint ? 22 : 12;
+    const color = isWeakPoint ? 16774307 : 16747059;
+    const group = new THREE.Group();
+    const particles = [];
+    for (let i = 0; i < count; i++) {
+      const material = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 1,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      const spark = new THREE.Mesh(sparkGeometry, material);
+      spark.position.copy(position);
+      const velocity = new THREE.Vector3(
+        Math.random() - 0.5,
+        Math.random() * 0.8 + 0.15,
+        Math.random() - 0.5
+      ).normalize().multiplyScalar(
+        (isWeakPoint ? 8 : 5) + Math.min(impactSpeed, 15) * 0.18
+      );
+      group.add(spark);
+      particles.push({ mesh: spark, velocity });
+    }
+    scene.add(group);
+    effects.push({ type: "sparks", group, particles, age: 0, lifetime: isWeakPoint ? 0.42 : 0.3 });
+  }
+  function createShockwave(position, isWeakPoint) {
+    const ringCount = isWeakPoint ? 2 : 1;
+    for (let i = 0; i < ringCount; i++) {
+      const material = new THREE.MeshBasicMaterial({
+        color: isWeakPoint ? 16774832 : 16740416,
+        transparent: true,
+        opacity: isWeakPoint ? 0.95 : 0.7,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.72, 1, 32),
+        material
+      );
+      ring.position.copy(position);
+      ring.scale.setScalar(0.15 + i * 0.12);
+      scene.add(ring);
+      effects.push({
+        type: "ring",
+        mesh: ring,
+        age: -i * 0.055,
+        lifetime: isWeakPoint ? 0.34 : 0.25,
+        maxScale: isWeakPoint ? 3.6 : 2.2
+      });
+    }
+  }
+  function spawnHitEffect(event, enemyBody, enemyMesh, isWeakPoint, impactSpeed) {
+    if (!scene || !enemyBody) return;
+    const position = getContactPoint(event, enemyBody);
+    createSparks(position, isWeakPoint, impactSpeed);
+    createShockwave(position, isWeakPoint);
+    flashMesh(enemyMesh, isWeakPoint);
+    const strength = isWeakPoint ? 0.34 : 0.14;
+    shakeStrength = Math.max(shakeStrength, strength + Math.min(impactSpeed, 15) * 6e-3);
+    shakeDuration = isWeakPoint ? 0.2 : 0.12;
+    shakeTime = shakeDuration;
+  }
+  function beginCameraFrame(activeCamera) {
+    activeCamera.position.sub(previousShakeOffset);
+    previousShakeOffset.set(0, 0, 0);
+  }
+  function applyCameraShake(activeCamera) {
+    if (shakeTime <= 0) return;
+    const amount = shakeStrength * (shakeTime / shakeDuration);
+    previousShakeOffset.set(
+      (Math.random() - 0.5) * 2 * amount,
+      (Math.random() - 0.5) * amount,
+      (Math.random() - 0.5) * 2 * amount
+    );
+    activeCamera.position.add(previousShakeOffset);
+  }
+  function updateHitEffects(dt) {
+    shakeTime = Math.max(0, shakeTime - dt);
+    for (const [mesh, state] of flashes) {
+      state.remaining -= dt;
+      if (state.remaining <= 0) restoreFlash(mesh, state);
+    }
+    for (let i = effects.length - 1; i >= 0; i--) {
+      const effect = effects[i];
+      effect.age += dt;
+      if (effect.age < 0) continue;
+      const progress = Math.min(effect.age / effect.lifetime, 1);
+      if (effect.type === "sparks") {
+        effect.particles.forEach((particle) => {
+          particle.velocity.y -= 12 * dt;
+          particle.mesh.position.addScaledVector(particle.velocity, dt);
+          particle.mesh.material.opacity = 1 - progress;
+          particle.mesh.scale.setScalar(1 - progress * 0.65);
+        });
+      } else {
+        effect.mesh.lookAt(camera.position);
+        effect.mesh.scale.setScalar(0.15 + effect.maxScale * progress);
+        effect.mesh.material.opacity = (1 - progress) * 0.85;
+      }
+      if (progress < 1) continue;
+      if (effect.type === "sparks") {
+        scene.remove(effect.group);
+        effect.particles.forEach(({ mesh }) => mesh.material.dispose());
+      } else {
+        scene.remove(effect.mesh);
+        effect.mesh.geometry.dispose();
+        effect.mesh.material.dispose();
+      }
+      effects.splice(i, 1);
+    }
+  }
+  function resetHitEffects() {
+    for (const [mesh, state] of flashes) restoreFlash(mesh, state);
+    effects.forEach((effect) => {
+      var _a, _b;
+      if (effect.type === "sparks") {
+        (_a = scene) == null ? void 0 : _a.remove(effect.group);
+        effect.particles.forEach(({ mesh }) => mesh.material.dispose());
+      } else {
+        (_b = scene) == null ? void 0 : _b.remove(effect.mesh);
+        effect.mesh.geometry.dispose();
+        effect.mesh.material.dispose();
+      }
+    });
+    effects.length = 0;
+    shakeStrength = 0;
+    shakeTime = 0;
+    shakeDuration = 0;
+    previousShakeOffset.set(0, 0, 0);
   }
 
   // src/object/cube.js
@@ -1626,6 +1898,14 @@
       if (!damage) return;
       this.applyDamage(damage);
       playEnemyHitSfx(this.lastHitWasWeakPoint);
+      const impactSpeed = Math.abs(event.contact.getImpactVelocityAlongNormal());
+      spawnHitEffect(
+        event,
+        this.body,
+        this.mesh,
+        this.lastHitWasWeakPoint,
+        impactSpeed
+      );
       const restHpRate = this.hp / this.maxHp;
       updateHpBar(restHpRate * 100);
       (_b = this.tutorial) == null ? void 0 : _b.notifyDamage(damage, {
@@ -2177,6 +2457,13 @@
       }
       this.applyDamage(damage);
       playEnemyHitSfx(isWeakPoint);
+      spawnHitEffect(
+        event,
+        this.bodies[segmentIndex],
+        this.meshes[segmentIndex],
+        isWeakPoint,
+        impactSpeed
+      );
       updateHpBar(this.hp / this.maxHp * 100);
       (_b = this.tutorial) == null ? void 0 : _b.notifyDamage(damage, { isWeakPoint });
     }
@@ -2670,6 +2957,7 @@
     resetGameClock();
     (_a = cube == null ? void 0 : cube.tutorial) == null ? void 0 : _a.destroyUi();
     (_b = snake == null ? void 0 : snake.tutorial) == null ? void 0 : _b.destroyUi();
+    resetHitEffects();
     try {
       destroyRenderer();
     } catch (error) {
@@ -3003,7 +3291,11 @@
     registered2 = true;
     document.addEventListener("touchstart", handleTouchStart, { passive: true });
   }
-  function handleTouchStart() {
+  function handleTouchStart(event) {
+    const target = event.target;
+    if (target instanceof Element && target.closest(
+      'button, a, input, select, textarea, [role="button"], [data-no-jump]'
+    )) return;
     currentBall2 == null ? void 0 : currentBall2.triggerJump();
   }
 
@@ -3118,8 +3410,10 @@
     const dt = Math.min((now - lastTime) / 1e3, 0.05);
     lastTime = now;
     updateGameState(dt);
+    updateHitEffects(dt);
     ballLight.position.copy(ball.mesh.position);
     ballLight.position.y += 0.5;
+    beginCameraFrame(camera);
     camTarget.lerp(ball.mesh.position, 0.08);
     const camOffsetX = -Math.sin(ball.heading) * CAM_DIST;
     const camOffsetZ = Math.cos(ball.heading) * CAM_DIST;
@@ -3127,6 +3421,7 @@
       new THREE.Vector3(camTarget.x + camOffsetX, camTarget.y + CAM_HEIGHT, camTarget.z + camOffsetZ),
       0.07
     );
+    applyCameraShake(camera);
     camera.lookAt(camTarget);
     const t = now / 1e3;
     neonLight1.position.x = Math.sin(t * 0.3) * 25;

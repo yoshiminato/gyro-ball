@@ -15,7 +15,18 @@ export function registerTouchEvent(ball) {
     document.addEventListener("touchstart", handleTouchStart, { passive: true });
 }
 
-/** 画面へのタッチをジャンプ入力として現在のボールへ渡す。 */
-function handleTouchStart() {
+/**
+ * ボタンなどのUI操作を除き、ゲーム画面へのタッチをジャンプとして扱う。
+ * @param {TouchEvent} event - タッチ開始イベント
+ */
+function handleTouchStart(event) {
+    const target = event.target;
+    if (
+        target instanceof Element
+        && target.closest(
+            'button, a, input, select, textarea, [role="button"], [data-no-jump]'
+        )
+    ) return;
+
     currentBall?.triggerJump();
 }

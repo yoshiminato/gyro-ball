@@ -8,7 +8,7 @@ const tracks = {
 };
 
 const enemyHitSound = createTrack(
-    new URL('../asset/audio/enemy-hit.ogg', import.meta.url).href,
+    'asset/audio/enemy-hit.ogg',
     0.38,
     false
 );
