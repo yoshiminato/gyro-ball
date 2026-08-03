@@ -461,23 +461,47 @@
     const ua = navigator.userAgent.toLowerCase();
     return /iphone|ipad|ipod|android/.test(ua);
   }
-  function setupGameScreen() {
+  var orientationLockBlocked = false;
+  function isGameFullscreen() {
+    return Boolean(
+      document.fullscreenElement || document.webkitFullscreenElement
+    );
+  }
+  function isFullscreenSupported() {
+    const element = document.documentElement;
+    return Boolean(
+      element.requestFullscreen || element.webkitRequestFullscreen
+    );
+  }
+  function requestGameFullscreen() {
     return __async(this, null, function* () {
       var _a;
-      if (typeof document.documentElement.requestFullscreen === "function") {
+      const element = document.documentElement;
+      const requestFullscreen = element.requestFullscreen || element.webkitRequestFullscreen;
+      if (!isGameFullscreen() && requestFullscreen) {
         try {
-          yield document.documentElement.requestFullscreen();
+          yield requestFullscreen.call(element);
         } catch (error) {
           console.warn("\u5168\u753B\u9762\u8868\u793A\u306B\u5931\u6557:", error);
+          return false;
         }
       }
-      if (isMobileDevice() && typeof ((_a = screen.orientation) == null ? void 0 : _a.lock) === "function") {
+      if (isMobileDevice() && !orientationLockBlocked && typeof ((_a = screen.orientation) == null ? void 0 : _a.lock) === "function") {
         try {
           yield screen.orientation.lock("landscape-primary");
         } catch (error) {
+          if ((error == null ? void 0 : error.name) === "SecurityError") {
+            orientationLockBlocked = true;
+          }
           console.warn("\u753B\u9762\u56FA\u5B9A\u306B\u5931\u6557:", error);
         }
       }
+      return isGameFullscreen();
+    });
+  }
+  function setupGameScreen() {
+    return __async(this, null, function* () {
+      yield requestGameFullscreen();
       const gameStartEvent = new CustomEvent("title-exit");
       window.dispatchEvent(gameStartEvent);
     });
@@ -3081,7 +3105,7 @@
   // 予兆中に体の中心へ寄せる量
   __publicField(_Snake, "HEAD_CENTER_APPROACH_LERP", 0.12);
   // 頭のXZ寄せを補間する係数
-  __publicField(_Snake, "initialPosition", { x: 0, z: -10 });
+  __publicField(_Snake, "initialPosition", { x: 0, z: -20 });
   var Snake = _Snake;
 
   // src/gameController.js
@@ -3614,6 +3638,72 @@
     }
   }
 
+  // src/ui/fullscreenControl.js
+  var registered3 = false;
+  var recoveryEnabled = false;
+  var recoveryButton = null;
+  function registerFullscreenControl() {
+    if (registered3) return;
+    registered3 = true;
+    window.addEventListener("title-exit", enableFullscreenRecovery);
+    [
+      "game-start",
+      "game-started",
+      "game-start-failed",
+      "game-over",
+      "game-clear",
+      "back-to-mode-select"
+    ].forEach((eventName) => {
+      window.addEventListener(eventName, handleScreenTransition);
+    });
+    document.addEventListener("fullscreenchange", updateRecoveryButton);
+    document.addEventListener("webkitfullscreenchange", updateRecoveryButton);
+  }
+  function enableFullscreenRecovery() {
+    recoveryEnabled = true;
+    handleScreenTransition();
+  }
+  function hasUserActivation() {
+    return !navigator.userActivation || navigator.userActivation.isActive;
+  }
+  function handleScreenTransition() {
+    return __async(this, null, function* () {
+      updateRecoveryButton();
+      if (!recoveryEnabled || isGameFullscreen() || !isFullscreenSupported() || !hasUserActivation()) return;
+      yield requestGameFullscreen();
+      updateRecoveryButton();
+    });
+  }
+  function updateRecoveryButton() {
+    const shouldShow = recoveryEnabled && isFullscreenSupported() && !isGameFullscreen();
+    if (!shouldShow) {
+      recoveryButton == null ? void 0 : recoveryButton.remove();
+      recoveryButton = null;
+      return;
+    }
+    if (recoveryButton) return;
+    recoveryButton = document.createElement("button");
+    recoveryButton.id = "fullscreen-recovery-button";
+    recoveryButton.type = "button";
+    recoveryButton.textContent = "\u26F6 \u5168\u753B\u9762\u306B\u623B\u308B";
+    recoveryButton.setAttribute("aria-label", "\u5168\u753B\u9762\u8868\u793A\u306B\u623B\u308B");
+    recoveryButton.addEventListener("click", restoreFullscreen);
+    document.body.appendChild(recoveryButton);
+  }
+  function restoreFullscreen() {
+    return __async(this, null, function* () {
+      if (!recoveryButton) return;
+      recoveryButton.disabled = true;
+      recoveryButton.textContent = "\u5168\u753B\u9762\u3078\u5207\u308A\u66FF\u3048\u4E2D\u2026";
+      const restored = yield requestGameFullscreen();
+      if (!restored && recoveryButton) {
+        recoveryButton.disabled = false;
+        recoveryButton.textContent = "\u26F6 \u5168\u753B\u9762\u306B\u623B\u308B";
+      }
+      updateRecoveryButton();
+    });
+  }
+
   // src/main.js
   var CAM_DIST = 14;
   var CAM_HEIGHT = 8;
@@ -3621,6 +3711,7 @@
   var camTarget = new THREE.Vector3();
   registerRouterEvents();
   registerPauseUi();
+  registerFullscreenControl();
   registerBgmEvents();
   showControlHint();
   animate();

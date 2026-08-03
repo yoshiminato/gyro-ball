@@ -17,6 +17,7 @@ import {
 import { registerKeyEvent } from './input/keyboard.js';
 import { registerTouchEvent } from './input/touch.js';
 import { registerPauseUi } from './ui/pausePage.js';
+import { registerFullscreenControl } from './ui/fullscreenControl.js';
 import { registerBgmEvents } from './audioManager.js';
 import { isMobileDevice } from './util.js';
 import {
@@ -35,6 +36,7 @@ const camTarget = new THREE.Vector3();
 // アプリ全体で一度だけ登録する画面遷移・UI・音声イベント。
 registerRouterEvents();
 registerPauseUi();
+registerFullscreenControl();
 registerBgmEvents();
 showControlHint();
 animate();

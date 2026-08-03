@@ -73,3 +73,25 @@ canvas {
     pointer-events: none;
     z-index: 10;
 }
+
+#fullscreen-recovery-button {
+    position: fixed;
+    top: 72px;
+    right: 16px;
+    z-index: 10003;
+    padding: 10px 14px;
+    border: 1px solid rgba(120, 220, 255, 0.85);
+    border-radius: 8px;
+    background: rgba(5, 18, 38, 0.92);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    touch-action: manipulation;
+    box-shadow: 0 0 18px rgba(60, 190, 255, 0.28);
+}
+
+#fullscreen-recovery-button:disabled {
+    cursor: wait;
+    opacity: 0.72;
+}
